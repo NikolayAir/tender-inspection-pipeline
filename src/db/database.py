@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Iterator
+from contextlib import closing, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -59,6 +61,26 @@ def connect(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+@contextmanager
+def transaction(
+    db_path: Path | str = DEFAULT_DB_PATH,
+    *,
+    connection: sqlite3.Connection | None = None,
+) -> Iterator[sqlite3.Connection]:
+    """Join a supplied transaction or own and close a new write transaction.
+
+    Only the owner commits or rolls back. Reserve the SQLite writer before any
+    document lookup so its identity and all related writes share one transaction.
+    """
+    if connection is not None:
+        yield connection
+        return
+
+    with closing(connect(db_path)) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
+        yield conn
+
+
 def _required_lastrowid(cursor: sqlite3.Cursor) -> int:
     """Return an inserted row id or fail if SQLite did not provide one."""
     lastrowid = cursor.lastrowid
@@ -74,7 +96,7 @@ def init_db(db_path: Path | str = DEFAULT_DB_PATH) -> None:
     without provenance receives one truthful legacy processing-run record.
     Repeated initialisation does not duplicate backfilled runs.
     """
-    with connect(db_path) as conn:
+    with closing(connect(db_path)) as conn, conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS documents (
@@ -275,9 +297,11 @@ def _backfill_legacy_processing_runs(conn: sqlite3.Connection) -> None:
 def insert_document(
     document: TenderDocument,
     db_path: Path | str = DEFAULT_DB_PATH,
+    *,
+    connection: sqlite3.Connection | None = None,
 ) -> int:
     """Insert a document and return its new id."""
-    with connect(db_path) as conn:
+    with transaction(db_path, connection=connection) as conn:
         cursor = conn.execute(
             """
             INSERT INTO documents (source, source_url, title, raw_text, clean_text)
@@ -298,9 +322,11 @@ def find_document_id(
     source: str,
     title: str,
     db_path: Path | str = DEFAULT_DB_PATH,
+    *,
+    connection: sqlite3.Connection | None = None,
 ) -> int | None:
     """Return an existing document id for this source and title."""
-    with connect(db_path) as conn:
+    with transaction(db_path, connection=connection) as conn:
         row = conn.execute(
             """
             SELECT id
@@ -319,9 +345,11 @@ def update_document(
     document_id: int,
     document: TenderDocument,
     db_path: Path | str = DEFAULT_DB_PATH,
+    *,
+    connection: sqlite3.Connection | None = None,
 ) -> None:
     """Refresh an existing document so reruns reflect source-file edits."""
-    with connect(db_path) as conn:
+    with transaction(db_path, connection=connection) as conn:
         conn.execute(
             """
             UPDATE documents
@@ -341,11 +369,13 @@ def insert_processing_result(
     processing_run: ProcessingRun,
     brief: InspectionBrief,
     db_path: Path | str = DEFAULT_DB_PATH,
+    *,
+    connection: sqlite3.Connection | None = None,
 ) -> tuple[int, int]:
     """Atomically persist one processing run and its linked brief.
 
     Returns ``(processing_run_id, brief_id)``. Failure of either insert rolls
-    back both records.
+    back both records. With a supplied connection, the caller owns the transaction.
     """
     processed_at = processing_run.processed_at
     if processed_at.tzinfo is None or processed_at.utcoffset() is None:
@@ -353,7 +383,7 @@ def insert_processing_result(
 
     processed_at_utc = processed_at.astimezone(timezone.utc).isoformat()
 
-    with connect(db_path) as conn:
+    with transaction(db_path, connection=connection) as conn:
         run_cursor = conn.execute(
             """
             INSERT INTO processing_runs (

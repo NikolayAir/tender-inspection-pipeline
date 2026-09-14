@@ -1,7 +1,7 @@
 """Single CLI entry point for the vertical slice.
 
 Wires the layers together:
-    load sample -> clean -> store document -> extract brief -> store brief.
+    load sample -> clean -> extract brief -> atomically store source and result.
 
 Run from the repository root:
     python -m src.pipeline                  # ingests all bundled samples
@@ -39,26 +39,28 @@ def run_pipeline(
 
     Safe to run repeatedly: the pipeline reuses an existing document found by
     (source, title), so ordinary re-runs update that logical document instead of
-    inserting duplicates. Each
-    execution appends a traceable processing run and preserves its linked brief.
+    inserting duplicates. Each successful execution appends a traceable processing
+    run and preserves its linked brief. A failed attempt leaves stored data intact.
     """
     database.init_db(db_path)
 
     document = load_sample(sample_path)
-    existing_id = database.find_document_id(document.source, document.title, db_path)
-    if existing_id is None:
-        document_id = database.insert_document(document, db_path)
-    else:
-        document_id = existing_id
-        database.update_document(document_id, document, db_path)
-
     brief = extract_brief(document)
-    processing_run = build_processing_run(document_id, document)
-    _, brief_id = database.insert_processing_result(
-        processing_run,
-        brief,
-        db_path,
-    )
+
+    with database.transaction(db_path) as conn:
+        existing_id = database.find_document_id(
+            document.source, document.title, connection=conn,
+        )
+        if existing_id is None:
+            document_id = database.insert_document(document, connection=conn)
+        else:
+            document_id = existing_id
+            database.update_document(document_id, document, connection=conn)
+
+        processing_run = build_processing_run(document_id, document)
+        _, brief_id = database.insert_processing_result(
+            processing_run, brief, connection=conn,
+        )
 
     return document_id, brief_id
 
