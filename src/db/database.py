@@ -341,6 +341,41 @@ def find_document_id(
     return int(row["id"]) if row is not None else None
 
 
+def has_completed_result(
+    source: str,
+    title: str,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> bool:
+    """Check whether this identity has a brief linked to its own processing run.
+
+    Use the same document lookup as ``find_document_id``. Restored legacy runs
+    count as complete; source-content and extractor-version changes do not
+    trigger automatic reprocessing.
+    """
+    with closing(connect(db_path)) as conn:
+        row = conn.execute(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM briefs AS b
+                JOIN processing_runs AS pr
+                  ON pr.id = b.processing_run_id
+                 AND pr.document_id = b.document_id
+                WHERE b.document_id = (
+                    SELECT id
+                    FROM documents
+                    WHERE source = ? AND title = ?
+                    ORDER BY id
+                    LIMIT 1
+                )
+            ) AS complete
+            """,
+            (source, title),
+        ).fetchone()
+
+    return bool(row["complete"])
+
+
 def update_document(
     document_id: int,
     document: TenderDocument,

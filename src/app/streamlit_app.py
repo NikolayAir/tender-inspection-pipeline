@@ -40,7 +40,7 @@ from src.models import (  # noqa: E402
     ReviewTargetType,
     StoredReviewerDecision,
 )
-from src.pipeline import BUNDLED_SAMPLES, ingest_bundled_samples  # noqa: E402
+from src.pipeline import ensure_bundled_samples  # noqa: E402
 from src.validation.manual_validation import (  # noqa: E402
     humanize_validation_label,
     load_validation_summary,
@@ -373,27 +373,17 @@ def render_reviewer_decisions(
 
 
 def _ensure_demo_data() -> list[dict]:
-    """Return stored documents, initialising bundled samples when needed.
+    """Return stored documents after recovering incomplete bundled samples.
 
     Supports hosted demos (e.g. Streamlit Community Cloud) where the app is opened
     directly from this file without first running ``python -m src.pipeline``. Runs
-    fully offline against the committed bundled samples; it does not change the
-    schema, extractor logic, or sample provenance. The explicit pipeline command
-    remains the recommended local reproducibility check.
+    fully offline against the committed bundled samples. Completed results,
+    including restored legacy provenance and their reviewer decisions, are
+    retained. The explicit pipeline command remains the local path for refreshing
+    results and checking reproducibility.
     """
-    database.init_db()
-    documents = database.get_documents()
-    if len(documents) >= len(BUNDLED_SAMPLES):
-        return documents
-
-    ingest_bundled_samples()
-    documents = database.get_documents()
-    if len(documents) < len(BUNDLED_SAMPLES):
-        raise RuntimeError(
-            f"Expected {len(BUNDLED_SAMPLES)} bundled documents, "
-            f"found {len(documents)} after initialisation."
-        )
-    return documents
+    ensure_bundled_samples()
+    return database.get_documents()
 
 
 def render_bundled_view() -> None:

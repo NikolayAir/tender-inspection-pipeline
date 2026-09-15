@@ -23,7 +23,7 @@ PUBLIC_SAMPLE_BELVAUX_PATH = Path("data") / "samples" / "public_lu_pmp_snhbm_bel
 
 # Samples ingested by the CLI by default: the synthetic sample (offline tests)
 # plus the manually curated public samples. Each is stored as its own document;
-# idempotency is handled per (source, title) in run_pipeline.
+# document reuse is handled per (source, title) in run_pipeline.
 BUNDLED_SAMPLES: list[Path] = [
     DEFAULT_SAMPLE_PATH,
     PUBLIC_SAMPLE_PATH,
@@ -68,13 +68,32 @@ def run_pipeline(
 def ingest_bundled_samples(
     db_path: Path | str = database.DEFAULT_DB_PATH,
 ) -> list[tuple[int, int]]:
-    """Run the pipeline over every bundled sample once.
+    """Explicitly process every bundled sample, appending new results.
 
-    Returns a list of (document_id, brief_id) per sample. Reused by the Streamlit
-    app to initialise the demo database when it is missing or empty. Fully offline;
-    only the committed bundled sample files are ingested.
+    Returns a list of (document_id, brief_id) per sample. Fully offline; only the
+    committed bundled sample files are ingested. Automatic recovery instead uses
+    ``ensure_bundled_samples`` to preserve completed results.
     """
     return [run_pipeline(sample_path, db_path) for sample_path in BUNDLED_SAMPLES]
+
+
+def ensure_bundled_samples(
+    db_path: Path | str = database.DEFAULT_DB_PATH,
+) -> list[tuple[int, int]]:
+    """Recover only missing or incomplete bundled samples and return new results.
+
+    A sample is complete when its (source, title) identifies a document with a
+    brief linked to a processing run for that same document. Existing completed
+    results and reviewer decisions are retained, including restored legacy runs.
+    Refreshing a completed sample requires an explicit pipeline execution.
+    """
+    database.init_db(db_path)
+    recovered = []
+    for sample_path in BUNDLED_SAMPLES:
+        document = load_sample(sample_path)
+        if not database.has_completed_result(document.source, document.title, db_path):
+            recovered.append(run_pipeline(sample_path, db_path))
+    return recovered
 
 
 def main() -> None:
