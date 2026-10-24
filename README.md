@@ -57,7 +57,7 @@ flowchart TD
 2. `src/parse/clean.py` normalises whitespace and encoding.
 3. `src/ai/risk_extract.py` applies the deterministic keyword-to-domain baseline and returns an `InspectionBrief`.
 4. `src/provenance.py` records the UTC processing time, extractor and brief-schema versions, and a SHA-256 fingerprint of the normalised source text.
-5. The processing run and its linked brief are saved together in SQLite: either both are stored or neither is.
+5. Document changes, the processing run, and its linked brief are saved through one SQLite connection and transaction. A failed attempt leaves the previously stored source and results unchanged.
 6. The Streamlit interface displays the latest persisted brief, accepts separate reviewer decisions, and prepares the JSON export.
 
 Material architecture and product decisions, including their trade-offs, are recorded in [`docs/decision_log.md`](docs/decision_log.md).
@@ -79,7 +79,7 @@ python -m src.pipeline
 python -m streamlit run src/app/streamlit_app.py
 ```
 
-The pipeline creates or updates `data/processed/tender_inspection.db`. The application can also initialise the bundled samples automatically when the generated database is absent or incomplete.
+The pipeline creates or updates `data/processed/tender_inspection.db`. The application automatically recovers missing or incomplete bundled samples while retaining completed results and their reviewer decisions.
 
 Process one sample explicitly:
 
@@ -119,6 +119,12 @@ The rule-based approach is transparent and reproducible, but it does not interpr
 | `processing_runs` | Timestamp, extractor and schema versions, and source fingerprint for one run | A new record is stored for each persisted run |
 | `briefs` | Structured generated result linked to one exact processing run | Generated briefs remain immutable |
 | `reviewer_decisions` | Human-authored state and optional note for one generated target | Every saved change appends a new event |
+
+Each sample-processing attempt saves its document changes, processing run and generated brief together, or rolls them all back. A failure during extraction, provenance preparation or persistence preserves the previous source text, document metadata, processing history, reviewer decisions and serialised export. Each sample has its own transaction; schema initialisation and supported migrations remain separate.
+
+Automatic initialisation checks each bundled sample by its `(source, title)` identity. A sample is complete when its stored document has a brief linked to a processing run for that same document, including restored legacy provenance. Unrelated documents do not count towards completeness. Completed samples are retained even when the bundled source file or extractor version has changed, and repeated initialisation adds no records once all samples are complete.
+
+Explicit pipeline execution refreshes the selected samples, reuses documents with the same identity, and appends new processing runs and briefs. Earlier reviewer decisions stay attached to their original briefs; each new brief starts without decisions.
 
 Reviewer decisions apply only to generated technical focus areas (`risk_domain`) and information gaps (`missing_info`) in persisted bundled briefs; generated review questions are not decision targets. An item with no saved decision is displayed as `Unreviewed` and does not create a database record.
 

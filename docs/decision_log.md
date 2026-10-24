@@ -135,3 +135,11 @@ Decision: Retain schema `1.0.0` for explicit compatibility serialisation of the 
 Reasoning: Reviewer decisions are human-authored review data, separate from deterministic extraction and immutable generated briefs. Including their history makes the downloadable record more useful while preserving source evidence, extraction output, and processing provenance.
 
 Trade-off: Schema `1.1.0` records decision events in ascending event-ID order, including the generated target type and position, state, optional note, and UTC decision timestamp. Reviewer decisions remain limited to persisted bundled briefs and generated `risk_domain` and `missing_info` targets. Session-only pasted excerpts, reviewer identity, authentication, simultaneous multi-user editing, and decisions for generated review questions remain unsupported.
+
+## 2026-10-25 — Atomic processing and selective sample recovery
+
+Decision: Save document changes, the processing run and its linked generated brief in one SQLite transaction using the same connection. Automatic initialisation checks each bundled `(source, title)` identity and processes only samples without a brief linked to a processing run for that same document. Restored legacy provenance counts as complete.
+
+Reasoning: Committing source changes before the new result could leave an older reviewed brief and its export paired with newer source data after a failure. Reprocessing every sample during recovery could also replace the latest reviewed result and hide its decisions. Failed attempts now preserve stored source data, review results and exports; completed samples retain their reviews during automatic recovery even if the bundled source or extractor version changes.
+
+Trade-off: Atomicity applies per sample, so earlier successful samples remain committed if a later sample fails. Schema initialisation and supported migrations remain separate from processing transactions. Explicit pipeline execution still appends a new processing run and brief, with earlier decisions retained on their original brief and no decisions copied to the new result. The database continues to store only the current source record for each logical document; the export schemas retain their existing contracts.
