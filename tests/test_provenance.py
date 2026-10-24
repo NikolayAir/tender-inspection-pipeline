@@ -185,7 +185,8 @@ def test_existing_database_is_backfilled_idempotently(tmp_path) -> None:
                 "Legacy clean text",
             ),
         )
-        document_id = int(document_cursor.lastrowid)
+        assert document_cursor.lastrowid is not None
+        document_id = document_cursor.lastrowid
 
         brief_cursor = conn.execute(
             """
@@ -209,7 +210,8 @@ def test_existing_database_is_backfilled_idempotently(tmp_path) -> None:
                 "2026-06-04 12:00:00",
             ),
         )
-        brief_id = int(brief_cursor.lastrowid)
+        assert brief_cursor.lastrowid is not None
+        brief_id = brief_cursor.lastrowid
 
     database.init_db(db_path)
     database.init_db(db_path)

@@ -76,10 +76,11 @@ def test_failed_processing_preserves_all_stored_data_and_exports(
     database.init_db(db_path)
     _write_sample(sample_path)
 
+    previous_result = None
     if reprocessing:
         document_id, brief_id = pipeline.run_pipeline(sample_path, db_path)
         _review(brief_id, db_path)
-        original_exports = _export_bytes(document_id, db_path)
+        previous_result = document_id, brief_id, _export_bytes(document_id, db_path)
 
     original = _snapshot(db_path)
     _write_sample(sample_path, updated=True)
@@ -107,7 +108,8 @@ def test_failed_processing_preserves_all_stored_data_and_exports(
         pipeline.run_pipeline(sample_path, db_path)
 
     assert _snapshot(db_path) == original
-    if reprocessing:
+    if previous_result is not None:
+        document_id, brief_id, original_exports = previous_result
         assert _export_bytes(document_id, db_path) == original_exports
         document = database.get_documents(db_path)[0]
         payload = database.get_latest_brief_export(document_id, db_path)

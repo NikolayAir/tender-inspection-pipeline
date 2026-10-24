@@ -530,7 +530,8 @@ def test_legacy_migrated_brief_can_be_exported(tmp_path) -> None:
                 "Legacy clean text.",
             ),
         )
-        document_id = int(document_cursor.lastrowid)
+        assert document_cursor.lastrowid is not None
+        document_id = document_cursor.lastrowid
 
         conn.execute(
             """
