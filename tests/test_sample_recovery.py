@@ -5,9 +5,11 @@ from __future__ import annotations
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
+from threading import Event, Thread, current_thread
 
 import pytest
 
+from src import pipeline
 from src.app import streamlit_app
 from src.collect.sample_loader import load_sample
 from src.db import database
@@ -100,6 +102,69 @@ def test_recovery_uses_the_requested_database_and_reports_only_new_results(tmp_p
     assert {(row["document_id"], row["id"]) for row in snapshot["briefs"]} == set(results)
     assert ensure_bundled_samples(db_path) == []
     assert _snapshot(db_path) == snapshot
+
+
+@pytest.mark.parametrize("existing_document", [False, True], ids=["missing", "document_only"])
+def test_parallel_recovery_keeps_the_completed_review_and_only_reports_new_results(
+    tmp_path, monkeypatch, existing_document,
+):
+    db_path = tmp_path / "parallel.db"
+    database.init_db(db_path)
+    sample = load_sample(BUNDLED_SAMPLES[0])
+    if existing_document:
+        database.insert_document(sample, db_path)
+
+    original_extract = pipeline.extract_brief
+    slow_started = Event()
+    resume_slow = Event()
+    failures: list[BaseException] = []
+    slow_results: list[tuple[int, int]] = []
+    previous = None
+
+    def gated_extract(document):
+        if current_thread().name == "slow-recovery" and (
+            document.source, document.title
+        ) == (sample.source, sample.title):
+            slow_started.set()
+            assert resume_slow.wait(10), "The other initialisation did not finish"
+        return original_extract(document)
+
+    def slow_initialisation():
+        try:
+            slow_results.extend(ensure_bundled_samples(db_path))
+        except BaseException as error:
+            failures.append(error)
+
+    monkeypatch.setattr(pipeline, "extract_brief", gated_extract)
+    worker = Thread(target=slow_initialisation, name="slow-recovery", daemon=True)
+    worker.start()
+    try:
+        assert slow_started.wait(10), "Slow initialisation did not reach extraction"
+        fast_results = ensure_bundled_samples(db_path)
+        assert len(fast_results) == len(BUNDLED_SAMPLES)
+        document_id, brief_id = fast_results[0]
+        _review(brief_id, db_path)
+        payload = database.get_latest_brief_export(document_id, db_path)
+        assert payload is not None
+        previous = document_id, brief_id, serialize_brief_export(payload), _snapshot(db_path)
+    finally:
+        resume_slow.set()
+        worker.join(10)
+
+    assert not worker.is_alive()
+    assert not failures, failures
+    assert previous is not None
+    document_id, brief_id, original_json, original_rows = previous
+    payload = database.get_latest_brief_export(document_id, db_path)
+    assert payload is not None
+    assert payload.brief_id == brief_id
+    assert serialize_brief_export(payload) == original_json
+    assert len(payload.reviewer_decisions) == 1
+    assert _snapshot(db_path) == original_rows
+    assert slow_results == []
+    assert ensure_bundled_samples(db_path) == []
+    assert _snapshot(db_path) == original_rows
+    _assert_all_samples_complete(db_path)
 
 
 @pytest.mark.parametrize("initial_state", ["empty", "documents_only", "run_without_brief"])

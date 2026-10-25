@@ -11,11 +11,13 @@ Run from the repository root:
 from __future__ import annotations
 
 import argparse
+import sqlite3
 from pathlib import Path
 
 from src.ai.risk_extract import extract_brief
 from src.collect.sample_loader import DEFAULT_SAMPLE_PATH, load_sample
 from src.db import database
+from src.models import InspectionBrief, TenderDocument
 from src.provenance import build_processing_run
 
 PUBLIC_SAMPLE_PATH = Path("data") / "samples" / "public_lu_pmp_ctie_001.txt"
@@ -29,6 +31,27 @@ BUNDLED_SAMPLES: list[Path] = [
     PUBLIC_SAMPLE_PATH,
     PUBLIC_SAMPLE_BELVAUX_PATH,
 ]
+
+
+def _store_document_result(
+    document: TenderDocument,
+    brief: InspectionBrief,
+    connection: sqlite3.Connection,
+) -> tuple[int, int]:
+    """Save a prepared source and result within the caller's write transaction."""
+    document_id = database.find_document_id(
+        document.source, document.title, connection=connection,
+    )
+    if document_id is None:
+        document_id = database.insert_document(document, connection=connection)
+    else:
+        database.update_document(document_id, document, connection=connection)
+
+    processing_run = build_processing_run(document_id, document)
+    _, brief_id = database.insert_processing_result(
+        processing_run, brief, connection=connection,
+    )
+    return document_id, brief_id
 
 
 def run_pipeline(
@@ -48,21 +71,7 @@ def run_pipeline(
     brief = extract_brief(document)
 
     with database.transaction(db_path) as conn:
-        existing_id = database.find_document_id(
-            document.source, document.title, connection=conn,
-        )
-        if existing_id is None:
-            document_id = database.insert_document(document, connection=conn)
-        else:
-            document_id = existing_id
-            database.update_document(document_id, document, connection=conn)
-
-        processing_run = build_processing_run(document_id, document)
-        _, brief_id = database.insert_processing_result(
-            processing_run, brief, connection=conn,
-        )
-
-    return document_id, brief_id
+        return _store_document_result(document, brief, conn)
 
 
 def ingest_bundled_samples(
@@ -85,14 +94,22 @@ def ensure_bundled_samples(
     A sample is complete when its (source, title) identifies a document with a
     brief linked to a processing run for that same document. Existing completed
     results and reviewer decisions are retained, including restored legacy runs.
-    Refreshing a completed sample requires an explicit pipeline execution.
+    Recheck completeness within the write transaction so overlapping recovery
+    attempts cannot replace a result completed by another session. Refreshing a
+    completed sample requires an explicit pipeline execution.
     """
     database.init_db(db_path)
     recovered = []
     for sample_path in BUNDLED_SAMPLES:
         document = load_sample(sample_path)
-        if not database.has_completed_result(document.source, document.title, db_path):
-            recovered.append(run_pipeline(sample_path, db_path))
+        if database.has_completed_result(document.source, document.title, db_path):
+            continue
+
+        brief = extract_brief(document)
+        with database.transaction(db_path) as conn:
+            if database.has_completed_result(document.source, document.title, connection=conn):
+                continue
+            recovered.append(_store_document_result(document, brief, conn))
     return recovered
 
 
