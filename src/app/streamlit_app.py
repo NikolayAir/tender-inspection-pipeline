@@ -11,6 +11,7 @@ source URL.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -45,6 +46,8 @@ from src.validation.manual_validation import (  # noqa: E402
     humanize_validation_label,
     load_validation_summary,
 )
+
+logger = logging.getLogger(__name__)
 
 # Upper bound on pasted text, to keep the in-session preview responsive.
 MAX_ADHOC_CHARS = 50_000
@@ -391,7 +394,19 @@ def render_bundled_view() -> None:
     try:
         documents = _ensure_demo_data()
     except Exception:
-        documents = []
+        logger.exception("Automatic bundled-sample recovery failed")
+        try:
+            documents = database.get_documents()
+        except (OSError, sqlite3.Error):
+            logger.exception("Could not read saved documents after recovery failed")
+            st.error("Saved documents are currently unavailable. Refresh to retry.")
+            return
+
+        if documents:
+            st.warning(
+                "Some bundled samples could not be prepared. Showing saved "
+                "documents. Refresh to retry."
+            )
 
     if not documents:
         st.error(
@@ -401,7 +416,7 @@ def render_bundled_view() -> None:
         return
 
     labels = {f"#{d['id']} - {d['title']}": d for d in documents}
-    choice = st.selectbox("Select a document", list(labels.keys()))
+    choice = st.selectbox("Select a document", list(labels.keys()), key="bundled_document")
     document = labels[choice]
 
     is_synthetic = document["source"] == "synthetic_sample"
@@ -418,14 +433,22 @@ def render_bundled_view() -> None:
             f"(source: {document['source']}).{url_part}"
         )
 
-    brief = database.get_brief_for_document(document["id"])
+    try:
+        brief = database.get_brief_for_document(document["id"])
+        export_payload = (
+            database.get_latest_brief_export(document["id"])
+            if brief is not None else None
+        )
+    except (OSError, sqlite3.Error):
+        logger.exception("Could not read the saved review for document %s", document["id"])
+        st.error("The saved review for this document is currently unavailable. Refresh to retry.")
+        return
 
     st.subheader("Inspection brief")
     if brief is None:
         st.info("No brief stored for this document.")
         return
 
-    export_payload = database.get_latest_brief_export(document["id"])
     if export_payload is not None:
         st.download_button(
             "Download review brief (JSON)",

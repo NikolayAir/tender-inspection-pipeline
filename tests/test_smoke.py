@@ -58,7 +58,7 @@ def test_bundled_view_shows_export_download_before_brief_body(monkeypatch):
             return False
 
     class FakeStreamlit:
-        def selectbox(self, _label, options):
+        def selectbox(self, _label, options, **_kwargs):
             return options[0]
 
         def info(self, *_args, **_kwargs):
