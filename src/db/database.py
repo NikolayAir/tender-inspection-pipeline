@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections.abc import Iterator
-from contextlib import closing, contextmanager
+from contextlib import closing, contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -326,7 +326,11 @@ def find_document_id(
     connection: sqlite3.Connection | None = None,
 ) -> int | None:
     """Return an existing document id for this source and title."""
-    with transaction(db_path, connection=connection) as conn:
+    with (
+        nullcontext(connection)
+        if connection is not None
+        else closing(connect(db_path))
+    ) as conn:
         row = conn.execute(
             """
             SELECT id
@@ -345,14 +349,21 @@ def has_completed_result(
     source: str,
     title: str,
     db_path: Path | str = DEFAULT_DB_PATH,
+    *,
+    connection: sqlite3.Connection | None = None,
 ) -> bool:
     """Check whether this identity has a brief linked to its own processing run.
 
     Use the same document lookup as ``find_document_id``. Restored legacy runs
     count as complete; source-content and extractor-version changes do not
-    trigger automatic reprocessing.
+    trigger automatic reprocessing. A supplied connection keeps this check in
+    the caller's transaction without committing, rolling back or closing it.
     """
-    with closing(connect(db_path)) as conn:
+    with (
+        nullcontext(connection)
+        if connection is not None
+        else closing(connect(db_path))
+    ) as conn:
         row = conn.execute(
             """
             SELECT EXISTS (
