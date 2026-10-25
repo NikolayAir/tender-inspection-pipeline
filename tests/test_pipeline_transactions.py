@@ -66,7 +66,7 @@ def _export_bytes(document_id, db_path):
 @pytest.mark.parametrize("reprocessing", [False, True], ids=["initial", "reviewed"])
 @pytest.mark.parametrize(
     "failure_stage",
-    ["extraction", "run_preparation", "documents", "processing_runs", "briefs"],
+    ["extraction", "run_preparation", "documents", "processing_runs", "briefs", "commit"],
 )
 def test_failed_processing_preserves_all_stored_data_and_exports(
     tmp_path, monkeypatch, reprocessing, failure_stage,
@@ -84,6 +84,7 @@ def test_failed_processing_preserves_all_stored_data_and_exports(
 
     original = _snapshot(db_path)
     _write_sample(sample_path, updated=True)
+    error_message = "forced processing failure"
 
     if failure_stage in {"extraction", "run_preparation"}:
         def fail(*_args, **_kwargs):
@@ -95,6 +96,25 @@ def test_failed_processing_preserves_all_stored_data_and_exports(
             fail,
         )
         error_type = RuntimeError
+    elif failure_stage == "commit":
+        with closing(database.connect(db_path)) as conn, conn:
+            conn.execute(
+                "CREATE TRIGGER fail_on_commit AFTER INSERT ON briefs BEGIN "
+                "INSERT INTO reviewer_decisions "
+                "(brief_id, target_type, target_index, state, decided_at) "
+                "VALUES (-1, 'risk_domain', 0, 'accepted', '2026-10-25T12:00:00+00:00'); END"
+            )
+
+        original_connect = database.connect
+
+        def defer_foreign_keys(*args, **kwargs):
+            connection = original_connect(*args, **kwargs)
+            connection.execute("PRAGMA defer_foreign_keys = ON")
+            return connection
+
+        monkeypatch.setattr(database, "connect", defer_foreign_keys)
+        error_type = sqlite3.IntegrityError
+        error_message = "FOREIGN KEY constraint failed"
     else:
         operation = "UPDATE" if reprocessing and failure_stage == "documents" else "INSERT"
         with closing(database.connect(db_path)) as conn, conn:
@@ -104,7 +124,7 @@ def test_failed_processing_preserves_all_stored_data_and_exports(
             )
         error_type = sqlite3.IntegrityError
 
-    with pytest.raises(error_type, match="forced processing failure"):
+    with pytest.raises(error_type, match=error_message):
         pipeline.run_pipeline(sample_path, db_path)
 
     assert _snapshot(db_path) == original

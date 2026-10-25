@@ -122,7 +122,9 @@ The rule-based approach is transparent and reproducible, but it does not interpr
 
 Each sample-processing attempt saves its document changes, processing run and generated brief together, or rolls them all back. A failure during extraction, provenance preparation or persistence preserves the previous source text, document metadata, processing history, reviewer decisions and serialised export. Each sample has its own transaction; schema initialisation and supported migrations remain separate.
 
-Automatic initialisation checks each bundled sample by its `(source, title)` identity. A sample is complete when its stored document has a brief linked to a processing run for that same document, including restored legacy provenance. Unrelated documents do not count towards completeness. Completed samples are retained even when the bundled source file or extractor version has changed, and repeated initialisation adds no records once all samples are complete.
+Automatic initialisation checks each bundled sample by its `(source, title)` identity. A sample is complete when its stored document has a brief linked to a processing run for that same document, including restored legacy provenance. Unrelated documents do not count towards completeness. Completed samples are retained even when the bundled source file or extractor version has changed, and repeated initialisation adds no records once all samples are complete. Recovery rechecks completeness inside each write transaction, so overlapping sessions retain results completed in the meantime.
+
+If sample recovery fails, the interface continues to show saved documents, reviews and JSON downloads when those records remain readable. It shows a recovery warning and retries on refresh. A successful retry retains the selected document; unavailable storage or review records receive a separate error message.
 
 Explicit pipeline execution refreshes the selected samples, reuses documents with the same identity, and appends new processing runs and briefs. Earlier reviewer decisions stay attached to their original briefs; each new brief starts without decisions.
 
