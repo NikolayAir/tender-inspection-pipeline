@@ -6,8 +6,6 @@ The application uses deterministic keyword rules to identify technical scopes, f
 
 [Open the application](https://tender-inspection.streamlit.app)
 
-![Application interface with a selected public tender sample and JSON download](docs/assets/tender-inspection-overview.png)
-
 ## Review workflow
 
 1. Choose a bundled public or synthetic sample, or paste a public, non-confidential excerpt.

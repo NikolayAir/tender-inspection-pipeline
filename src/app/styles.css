@@ -1,0 +1,90 @@
+/* Keep native widgets and keyboard behaviour; scope layout changes to app keys. */
+.stMainBlockContainer {
+    max-width: 1240px; /* Keep review text readable on wide screens. */
+    padding-top: 2.4rem;
+    padding-bottom: 2rem;
+}
+
+.stApp h1 { font-size: 2rem; letter-spacing: -0.045em; }
+.stApp h2 { font-size: 1.45rem; letter-spacing: -0.025em; }
+.stApp h3 { font-size: 1.08rem; letter-spacing: -0.015em; }
+.stApp h1, .stApp h2, .stApp h3 { padding-top: 0; }
+
+.app-brand { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
+.brand-mark {
+    display: grid;
+    place-items: center; /* Centre the monogram on both axes. */
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.7rem;
+    background: #4f8ef7;
+    color: #fff;
+    font-weight: 750;
+    letter-spacing: -0.08em; /* Keep the initials joined as a compact monogram. */
+}
+.brand-name { font-size: 1.05rem; font-weight: 700; line-height: 1.25; }
+.brand-caption, .eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em; /* Open up small uppercase labels for readability. */
+    font-weight: 600;
+    text-transform: uppercase;
+    opacity: 0.65;
+}
+.eyebrow { margin-bottom: 0.45rem; color: inherit; opacity: 1; }
+
+.st-key-workspace_nav [role="radiogroup"] { gap: 0.25rem; }
+.st-key-workspace_nav [role="radiogroup"] > label {
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.55rem;
+    width: 100%;
+    margin: 0;
+}
+.st-key-workspace_nav [role="radiogroup"] > label:has(input:checked) {
+    color: inherit;
+}
+
+.st-key-brief_header h2 { font-size: 1.35rem; line-height: 1.4; }
+.st-key-brief_header { padding-top: 0.2rem; }
+.st-key-brief_metrics [data-testid="stMetric"] {
+    border: 1px solid rgba(127, 142, 146, 0.25);
+    border-radius: 0.65rem;
+    padding: 0.85rem 1rem;
+}
+.st-key-brief_metrics [data-testid="stMetricValue"] { font-size: 1.7rem; }
+.st-key-brief_metrics [data-testid="stMetricLabel"] { font-size: 0.8rem; }
+.st-key-brief_tabs [role="tablist"] { gap: 1.6rem; }
+.st-key-brief_tabs [role="tab"] { padding: 0.8rem 0.1rem; }
+.st-key-brief_tabs [role="tabpanel"] { padding-top: 1.25rem; }
+
+.scope-tags {
+    display: flex;
+    flex-wrap: wrap; /* Let topic tags wrap rather than widen the page. */
+    gap: 0.45rem;
+    margin: 0.3rem 0 1rem;
+}
+.scope-tag {
+    padding: 0.35rem 0.65rem;
+    border: 1px solid rgba(127, 142, 146, 0.25);
+    border-radius: 0.4rem;
+    font-size: 0.83rem;
+    line-height: 1.45; /* Leave room between lines when a tag label wraps. */
+}
+.st-key-overview_summary, .st-key-overview_next, .st-key-finding_evidence,
+.st-key-finding_decision, .st-key-excerpt_input {
+    padding: 1.15rem;
+}
+.st-key-source_text pre {
+    white-space: pre-wrap; /* Preserve source spacing and line breaks while allowing wrapping. */
+    overflow-wrap: anywhere;
+    font-size: 0.85rem;
+}
+.st-key-sidebar_footer { margin-top: 1.5rem; }
+
+@media (max-width: 800px) { /* Use browser viewport width, independent of the available workspace width. */
+    .stMainBlockContainer { padding: 1.3rem 1rem 2rem; }
+    .stApp h1 { font-size: 1.65rem; }
+    .st-key-brief_tabs [role="tablist"] { gap: 0.8rem; }
+    .st-key-brief_tabs [role="tab"] { font-size: 0.85rem; }
+    .st-key-brief_metrics [data-testid="stMetric"] { padding: 0.7rem; }
+    .st-key-brief_metrics [data-testid="stMetricValue"] { font-size: 1.4rem; }
+}

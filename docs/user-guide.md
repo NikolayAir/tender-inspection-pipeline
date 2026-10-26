@@ -25,8 +25,6 @@ For each generated focus area or information gap, select **Accepted**, **Rejecte
 
 Each save appends an event. The latest event determines the displayed state, and earlier states and notes remain in the history. Saving a decision does not alter the generated brief. Generated questions are not separate decision targets.
 
-![Reviewer controls showing the current state, optional note, and decision form for a saved finding](assets/tender-inspection-reviewer-decisions.png)
-
 Decisions belong to the specific brief being reviewed. If an explicit pipeline run creates a new brief, earlier decisions remain attached to the earlier brief and are not copied to the new one. A form submitted for an earlier brief is not applied to a newer brief.
 
 ## Preview a public excerpt

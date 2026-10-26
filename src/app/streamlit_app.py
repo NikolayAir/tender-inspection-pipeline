@@ -15,6 +15,7 @@ import logging
 import sqlite3
 import sys
 from datetime import datetime, timezone
+from html import escape
 from pathlib import Path
 
 # Allow `streamlit run src/app/streamlit_app.py` to import the `src` package by
@@ -35,6 +36,7 @@ from src.db import database  # noqa: E402
 from src.exports import VersionedBriefExport, serialize_brief_export  # noqa: E402
 from src.models import (  # noqa: E402
     EvidenceSnippet,
+    InspectionBrief,
     ReviewerDecision,
     ReviewState,
     ReviewTargetType,
@@ -159,51 +161,41 @@ def _bullets(items: list[str], empty_text: str) -> None:
     st.markdown("\n".join(f"- {item}" for item in items))
 
 
-def render_brief_body(brief) -> None:
-    """Render the shared review-brief body for bundled and pasted sources.
+def render_brief_body(brief: InspectionBrief) -> None:
+    """Show a compact overview without duplicating scopes and focus areas."""
+    summary, questions = st.columns([1.1, 1], gap="large")
+    with summary, st.container(border=True, key="overview_summary"):
+        st.subheader("At a glance", anchor=False)
+        st.write(brief.summary)
+        st.markdown("**Detected technical scopes**")
+        if brief.technical_scopes:
+            tags = "".join(
+                f'<span class="scope-tag">{escape(scope)}</span>'
+                for scope in brief.technical_scopes
+            )
+            st.html(f'<div class="scope-tags">{tags}</div>')
+        else:
+            st.caption("No technical scopes matched. Read the source manually.")
+        if brief.risk_domains != brief.technical_scopes:
+            st.markdown("**Review focus areas**")
+            _bullets(brief.risk_domains, "No review focus areas detected.")
+        st.markdown("**Information gaps**")
+        _bullets(
+            brief.missing_info,
+            "No explicit gaps matched. This does not establish completeness.",
+        )
+    with questions:
+        st.subheader("Questions to take into review", anchor=False)
+        st.caption("Suggested prompts to check against the full tender documentation.")
+        if brief.review_questions:
+            for index, question in enumerate(brief.review_questions, 1):
+                st.markdown(f"**{index:02d}** · {question}")
+        else:
+            st.write("No questions generated. Start by reading the source excerpt.")
 
-    Source provenance and the validation snapshot remain in the calling view
-    because they depend on how the brief was created.
-    """
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Review focus areas", len(brief.risk_domains))
-    m2.metric("Detected information gaps", len(brief.missing_info))
-    m3.metric("Evidence snippets", len(brief.evidence))
-    m4.metric(
-        "Baseline confidence",
-        brief.confidence.capitalize(),
-        help=(
-            "Fixed at Low because the rule-based baseline requires human review; "
-            "this is not a statistical confidence score."
-        ),
-    )
 
-    st.write(f"**Generated summary:** {brief.summary}")
-    st.info(
-        "Human review required. Verify each generated finding against its "
-        "source evidence before using it."
-    )
-
-    st.markdown("**Detected technical scopes**")
-    _bullets(brief.technical_scopes, "No technical scopes detected by the baseline")
-
-    st.markdown("**Potential review focus areas**")
-    _bullets(brief.risk_domains, "No review focus areas detected by the baseline")
-    st.caption(
-        "Current limitation: technical scopes and review focus areas use the "
-        "same set of domain rules, so the two sections may overlap."
-    )
-
-    st.markdown("**Missing / unclear information**")
-    _bullets(
-        brief.missing_info,
-        "No explicit information gaps detected by the baseline",
-    )
-
-    st.markdown("**Suggested review questions**")
-    _bullets(brief.review_questions, "No review questions generated")
-
-    st.markdown("**Evidence snippets (source-traced)**")
+def render_evidence_table(brief: InspectionBrief) -> None:
+    """Show evidence separately from the overview and decision forms."""
     rows = evidence_rows(brief.evidence)
     if rows:
         st.dataframe(
@@ -398,6 +390,7 @@ def render_bundled_view() -> None:
         documents = _ensure_demo_data()
     except Exception:
         logger.exception("Automatic bundled-sample recovery failed")
+        # If a sample cannot be prepared, keep other saved reviews and downloads available.
         try:
             documents = database.get_documents()
         except (OSError, sqlite3.Error):
@@ -419,7 +412,11 @@ def render_bundled_view() -> None:
         return
 
     labels = {f"#{d['id']} - {d['title']}": d for d in documents}
-    choice = st.selectbox("Select a document", list(labels.keys()), key="bundled_document")
+    with st.sidebar:
+        st.divider()
+        st.caption("BUNDLED SAMPLES")
+        choice = st.selectbox("Select a document", list(labels.keys()), key="bundled_document")
+        st.caption("Saved results and reviewer decisions are retained between visits.")
     document = labels[choice]
 
     try:
@@ -434,95 +431,148 @@ def render_bundled_view() -> None:
         return
     document, export_payload = snapshot
 
-    is_synthetic = document["source"] == "synthetic_sample"
-    if is_synthetic:
-        st.info(
-            "This document is synthetic sample data for offline testing. "
-            "It is not a real public tender."
-        )
-    else:
-        source_url = document.get("source_url") or ""
-        url_part = f" View the full notice: {source_url}" if source_url else ""
-        st.info(
-            f"This is a manually curated excerpt from a public procurement notice "
-            f"(source: {document['source']}).{url_part}"
-        )
-
-    st.subheader("Inspection brief")
     if export_payload is None:
         st.info("No brief stored for this document.")
         return
 
-    st.download_button(
-        "Download review brief (JSON)",
-        data=serialize_brief_export(export_payload),
-        file_name=brief_export_filename(document["id"]),
-        mime="application/json",
-        help=(
-            "Includes the review brief, source evidence, document metadata, "
-            "processing time and versions, and the source fingerprint."
-        ),
-    )
+    with st.container(key="brief_header"):
+        heading, actions = st.columns([3, 1], vertical_alignment="center")
+        with heading:
+            st.subheader(document["title"], anchor=False)
+            st.badge(
+                "Synthetic test sample" if document["source"] == "synthetic_sample" else "Public tender excerpt",
+                icon=":material/science:" if document["source"] == "synthetic_sample" else ":material/public:",
+                color="gray",
+            )
+        with actions:
+            st.download_button(
+                "Download review brief (JSON)",
+                data=serialize_brief_export(export_payload),
+                file_name=brief_export_filename(document["id"]),
+                mime="application/json",
+                icon=":material/download:",
+                width="stretch",
+                help=(
+                    "Includes the review brief, source evidence, document metadata, "
+                    "processing time and versions, and the source fingerprint."
+                ),
+            )
 
-    render_brief_body(export_payload.brief)
-    render_reviewer_decisions(export_payload)
-
-    expander_label = (
-        "Source document — synthetic sample"
-        if is_synthetic
-        else "Source excerpt — public sample"
+    render_brief_metrics(export_payload.brief, export_payload)
+    st.caption(
+        "Human review required · Keyword-based findings · Baseline confidence: Low. "
+        "Verify findings against the source before using them."
     )
-    with st.expander(expander_label, expanded=False):
+    overview, decisions, evidence, details = st.tabs(
+        ["Overview", "Review findings", "Evidence & source", "Run details"],
+        key="brief_tabs",
+        on_change="rerun",
+    )
+    with overview:
+        render_brief_body(export_payload.brief)
+    with decisions:
+        render_reviewer_decisions(export_payload)
+    with evidence:
+        render_source_evidence(document, export_payload.brief)
+    with details:
+        render_run_details(export_payload)
+
+
+def render_brief_metrics(
+    brief: InspectionBrief, payload: VersionedBriefExport | None = None,
+) -> None:
+    """Keep brief size and saved-decision progress visible above the tabs."""
+    with st.container(key="brief_metrics"):
+        focus, gaps, evidence, reviewed = st.columns(4)
+        focus.metric("Focus areas", len(brief.risk_domains))
+        gaps.metric("Information gaps", len(brief.missing_info))
+        evidence.metric("Source snippets", len(brief.evidence))
+        total = len(brief.risk_domains) + len(brief.missing_info)
+        saved = len({(d.target_type, d.target_index) for d in payload.reviewer_decisions}) if payload else 0
+        reviewed.metric("Decisions saved", f"{saved} / {total}" if payload else "Preview only")
+
+
+def render_source_evidence(document: dict, brief: InspectionBrief) -> None:
+    """Put the evidence index beside its readable source excerpt."""
+    evidence, source = st.columns([1, 1], gap="large")
+    with evidence:
+        st.subheader("Evidence index", anchor=False)
+        st.caption("Keyword matches with approximate source locations.")
+        render_evidence_table(brief)
+    with source:
+        st.subheader("Source excerpt", anchor=False)
         st.write(f"**Source:** {document['source']}")
-        url_display = document["source_url"] or (
-            "n/a — offline synthetic sample" if is_synthetic else "n/a"
-        )
-        st.write(f"**Source URL:** {url_display}")
-        st.text(document["clean_text"])
+        if document.get("source_url"):
+            st.write(f"**Source URL:** {document['source_url']}")
+        elif document["source"] == "synthetic_sample":
+            st.caption("Synthetic test data. This is not a real public tender.")
+        with st.container(height=360, border=True, key="source_text"):
+            st.text(document["clean_text"])
 
-    with st.expander("Validation snapshot", expanded=False):
-        try:
-            summary = load_validation_summary()
-        except Exception:
-            st.caption("Validation summary is currently unavailable.")
-        else:
-            status_bits = ", ".join(
-                f"{humanize_validation_label(status)} ({count})"
-                for status, count in sorted(summary["status_counts"].items())
-                if status
+
+def render_run_details(payload: VersionedBriefExport) -> None:
+    """Separate reproducibility and validation details from everyday review."""
+    run, validation = st.columns([1, 1.2], gap="large")
+    with run:
+        st.subheader("Processing record", anchor=False)
+        st.write(f"**Brief:** #{payload.brief_id} · **Run:** #{payload.processing_run.id}")
+        st.write(f"**Processed:** {payload.processing_run.processed_at:%Y-%m-%d %H:%M UTC}")
+        st.write(f"**Extractor:** {payload.processing_run.extractor_name}")
+        st.write(f"**Extractor version:** {payload.processing_run.extractor_version}")
+        st.write(f"**Brief schema:** {payload.processing_run.brief_schema_version}")
+        st.write(f"**Export schema:** {payload.export_schema_version}")
+        st.markdown("**Source fingerprint · SHA-256**")
+        st.code(payload.processing_run.source_content_fingerprint, language=None, wrap_lines=True)
+        st.caption("Decisions belong to this brief. Reprocessing creates a new brief with its own review history.")
+    with validation:
+        st.subheader("Validation snapshot", anchor=False)
+        render_validation_snapshot()
+
+
+def render_validation_snapshot() -> None:
+    """Render the committed qualitative comparison without hiding it in an accordion."""
+    try:
+        summary = load_validation_summary()
+    except Exception:
+        st.caption("Validation summary is currently unavailable.")
+    else:
+        status_bits = ", ".join(
+            f"{humanize_validation_label(status)} ({count})"
+            for status, count in sorted(summary["status_counts"].items())
+            if status
+        )
+        st.write(f"**Manually reviewed samples:** {summary['sample_count']}")
+        st.write(
+            f"**Manual comparison outcomes:** {status_bits}"
+            if status_bits
+            else "**Manual comparison outcomes:** n/a"
+        )
+        detail_rows = summary.get("detail_rows", [])
+        if detail_rows:
+            st.dataframe(
+                detail_rows,
+                hide_index=True,
+                width="stretch",
+                column_config={
+                    "sample_id": st.column_config.TextColumn("Sample", width="small"),
+                    "source_type": st.column_config.TextColumn(
+                        "Source type", width="small"
+                    ),
+                    "match_status": st.column_config.TextColumn("Match", width="small"),
+                    "manually_expected_domains": st.column_config.TextColumn(
+                        "Manually expected domains", width="large"
+                    ),
+                    "extracted_domains": st.column_config.TextColumn(
+                        "Extracted domains", width="large"
+                    ),
+                },
             )
-            st.write(f"**Manually reviewed samples:** {summary['sample_count']}")
-            st.write(
-                f"**Manual comparison outcomes:** {status_bits}"
-                if status_bits
-                else "**Manual comparison outcomes:** n/a"
-            )
-            detail_rows = summary.get("detail_rows", [])
-            if detail_rows:
-                st.dataframe(
-                    detail_rows,
-                    hide_index=True,
-                    width="stretch",
-                    column_config={
-                        "sample_id": st.column_config.TextColumn("Sample", width="small"),
-                        "source_type": st.column_config.TextColumn(
-                            "Source type", width="small"
-                        ),
-                        "match_status": st.column_config.TextColumn("Match", width="small"),
-                        "manually_expected_domains": st.column_config.TextColumn(
-                            "Manually expected domains", width="large"
-                        ),
-                        "extracted_domains": st.column_config.TextColumn(
-                            "Extracted domains", width="large"
-                        ),
-                    },
-                )
-            st.caption(
-                'Here, "Match" means that the extracted review domains agreed with '
-                "the manually defined expectations for a sample. This dataset is "
-                "too small to support statistical accuracy claims. Detailed notes "
-                "are stored in `data/labels/manual_validation_v1.csv`."
-            )
+        st.caption(
+            'Here, "Match" means that the extracted review domains agreed with '
+            "the manually defined expectations for a sample. This dataset is "
+            "too small to support statistical accuracy claims. Detailed notes "
+            "are stored in `data/labels/manual_validation_v1.csv`."
+        )
 
 
 def render_adhoc_view() -> None:
@@ -570,33 +620,40 @@ def render_adhoc_view() -> None:
 
 
 def render() -> None:
-    """Render bundled review briefs and the public-excerpt analysis view."""
+    """Render one workflow at a time in a shared application shell."""
     st.set_page_config(
-        page_title="Tender-to-Inspection Brief", page_icon=":clipboard:", layout="wide"
+        page_title="Tender-to-Inspection Brief",
+        page_icon=":material/fact_check:",
+        layout="wide",
     )
+    st.html(Path(__file__).with_name("styles.css"))
+    with st.sidebar:
+        st.html(
+            '<div class="app-brand"><div class="brand-mark">ti</div>'
+            '<div><div class="brand-name">Tender inspection</div>'
+            '<div class="brand-caption">Source to decision</div></div></div>'
+        )
+        page = st.radio(
+            "Workspace navigation",
+            ["Review workspace", "Analyse a public excerpt"],
+            key="workspace_nav",
+            label_visibility="collapsed",
+        )
 
-    st.title("Tender-to-Inspection Brief")
-    st.caption(
-        "Creates source-traced technical review briefs from public construction "
-        "tender notices and excerpts."
-    )
-    st.markdown(
-        "**Current coverage:** 3 bundled samples, including "
-        "2 public Luxembourg procurement excerpts · SQLite-backed briefs and "
-        "reviewer decisions · transparent rule-based extraction · qualitative "
-        "validation"
-    )
-    st.warning(
-        "Verify generated findings against source evidence. "
-        "The application supports technical review, not legal, regulatory, "
-        "compliance, safety, or engineering decisions."
-    )
-
-    tab_bundled, tab_adhoc = st.tabs(["Bundled samples", "Analyse a public excerpt"])
-    with tab_bundled:
+    st.html('<div class="eyebrow">Tender-to-Inspection Brief</div>')
+    if page == "Review workspace":
+        st.title("Review workspace")
+        st.caption("Understand the scope. Check the evidence. Record your decisions.")
         render_bundled_view()
-    with tab_adhoc:
+    else:
+        st.title("Analyse a public excerpt")
+        st.caption("Turn public tender text into a source-traced review preview.")
         render_adhoc_view()
+
+    with st.sidebar, st.container(key="sidebar_footer"):
+        st.divider()
+        st.caption("Transparent keyword rules · No external AI service")
+        st.caption("Supports human technical review. Findings require verification.")
 
 
 if __name__ == "__main__":

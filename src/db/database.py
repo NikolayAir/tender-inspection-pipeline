@@ -693,6 +693,8 @@ def get_document_review(
     the page is rendered, without reserving write access.
     """
     with closing(connect(db_path)) as conn, conn:
+        # Keep source, brief and decisions in one read transaction; separate queries
+        # could otherwise see different committed database states.
         conn.execute("BEGIN")
         document = conn.execute(
             "SELECT * FROM documents WHERE id = ?", (document_id,),
