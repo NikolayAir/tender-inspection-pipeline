@@ -49,6 +49,7 @@ def test_filtered_queue_saves_to_original_target_and_updates_progress(reviewed_a
     history = database.get_reviewer_decision_history(brief_id, db_path)
     assert [(event.target_index, event.state) for event in history] == [(0, "accepted"), (1, "needs_follow_up")]
     assert history[-1].note == "Check electrical drawings."
+    assert not any(element.proto.unsafe_allow_javascript for element in app.get("html"))
     assert app.metric[3].value == "2 / 9"
     assert app.selectbox(key=f"review_queue:{brief_id}").value == ("risk_domain", 2)
     app.selectbox(key=f"review_filter:{brief_id}").select("Needs follow-up").run()
@@ -77,6 +78,11 @@ def test_overview_action_opens_review_without_writing_a_decision(reviewed_app):
     assert not app.exception
     assert app.session_state["brief_tabs"] == "Review findings"
     assert len(database.get_reviewer_decision_history(brief_id, db_path)) == 1
+    effects = [element for element in app.get("html") if element.proto.unsafe_allow_javascript]
+    assert len(effects) == 1
+    assert ".st-key-brief_tabs" in effects[0].proto.body
+    app.run()
+    assert not any(element.proto.unsafe_allow_javascript for element in app.get("html"))
 
 
 def test_gap_evidence_is_linked_to_its_own_sentence_only():

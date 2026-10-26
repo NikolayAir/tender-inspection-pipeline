@@ -36,6 +36,7 @@ from src.app.review import (  # noqa: E402
     filter_findings,
     latest_decisions,
 )
+from src.app.scroll import render_pending_scroll, request_scroll  # noqa: E402
 from src.collect.sample_loader import build_document_from_text  # noqa: E402
 from src.db import database  # noqa: E402
 from src.exports import VersionedBriefExport, serialize_brief_export  # noqa: E402
@@ -152,6 +153,7 @@ def _bullets(items: list[str], empty_text: str) -> None:
 
 def _select_brief_tab(label: str) -> None:
     st.session_state["brief_tabs"] = label
+    request_scroll("review")
 
 
 def _render_scope_tags(scopes: list[str]) -> None:
@@ -659,8 +661,9 @@ def render_adhoc_view() -> None:
                     default_title=title.strip() or "Pasted public excerpt",
                 )
                 st.session_state["adhoc_preview"] = (document, extract_brief(document))
+                request_scroll("preview")
 
-    with preview_column:
+    with preview_column, st.container(key="preview_result"):
         preview = st.session_state.get("adhoc_preview")
         if preview is None:
             with st.container(border=True, key="preview_empty"):
@@ -741,6 +744,8 @@ def render() -> None:
         st.divider()
         st.caption("Transparent keyword rules · No external AI service")
         st.caption("Supports human technical review. Findings require verification.")
+
+    render_pending_scroll()
 
 
 if __name__ == "__main__":

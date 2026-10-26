@@ -38,6 +38,11 @@ def test_preview_never_renders_saved_decisions_or_writes_to_storage(excerpt_app)
     assert app.metric[1].value == "1"
     assert [tab.label for tab in app.tabs] == ["Findings", "Evidence", "Questions", "Source"]
     assert not app.get("download_button")
+    effects = [element for element in app.get("html") if element.proto.unsafe_allow_javascript]
+    assert len(effects) == 1
+    assert ".st-key-preview_result" in effects[0].proto.body
+    app.run()
+    assert not any(element.proto.unsafe_allow_javascript for element in app.get("html"))
     assert all(widget.label != "Reviewer decision" for widget in app.selectbox)
     assert database.get_documents(db_path) == documents
     with database.connect(db_path) as conn:
@@ -68,6 +73,7 @@ def test_invalid_resubmission_keeps_the_previous_preview_explicit(excerpt_app):
     assert not app.exception
     assert any("Please paste" in message.value for message in app.warning)
     assert any("last generated preview" in message.value for message in app.info)
+    assert not any(element.proto.unsafe_allow_javascript for element in app.get("html"))
     assert app.metric[0].value == "1"
     assert any(item.value == EXCERPT for item in app.text)
     _generate(app, "Electrical installation works.")

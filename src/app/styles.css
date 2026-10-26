@@ -87,6 +87,12 @@
 }
 .st-key-preview_empty { padding: 2rem; margin-top: 0.1rem; border-style: dashed; }
 .st-key-sidebar_footer { margin-top: 1.5rem; }
+.st-key-brief_tabs, .st-key-preview_result {
+    scroll-margin-top: 5rem; /* Leave space above content revealed by scrollIntoView(). */
+}
+.st-key-scroll_effect {
+    display: none; /* Keep the script-only scroll helper out of the visible layout. */
+}
 
 @media (max-width: 800px) { /* Use browser viewport width, independent of the available workspace width. */
     .stMainBlockContainer { padding: 4rem 1rem 2rem; }
