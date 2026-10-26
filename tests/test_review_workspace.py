@@ -70,6 +70,15 @@ def test_next_previous_and_empty_filter_do_not_write_decisions(reviewed_app):
     assert len(database.get_reviewer_decision_history(brief_id, db_path)) == 1
 
 
+def test_overview_action_opens_review_without_writing_a_decision(reviewed_app):
+    app, db_path, brief_id = reviewed_app
+    next(button for button in app.button if button.label == "Start reviewing").click().run()
+
+    assert not app.exception
+    assert app.session_state["brief_tabs"] == "Review findings"
+    assert len(database.get_reviewer_decision_history(brief_id, db_path)) == 1
+
+
 def test_gap_evidence_is_linked_to_its_own_sentence_only():
     brief = extract_brief(load_sample())
     for index, value in enumerate(brief.missing_info):

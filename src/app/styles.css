@@ -1,7 +1,7 @@
 /* Keep native widgets and keyboard behaviour; scope layout changes to app keys. */
 .stMainBlockContainer {
     max-width: 1240px; /* Keep review text readable on wide screens. */
-    padding-top: 2.4rem;
+    padding-top: 4rem;
     padding-bottom: 2rem;
 }
 
@@ -9,6 +9,7 @@
 .stApp h2 { font-size: 1.45rem; letter-spacing: -0.025em; }
 .stApp h3 { font-size: 1.08rem; letter-spacing: -0.015em; }
 .stApp h1, .stApp h2, .stApp h3 { padding-top: 0; }
+.st-key-page_header h1 { padding-bottom: 0; }
 
 .app-brand { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
 .brand-mark {
@@ -49,7 +50,7 @@
 .st-key-brief_metrics [data-testid="stMetric"] {
     border: 1px solid rgba(127, 142, 146, 0.25);
     border-radius: 0.65rem;
-    padding: 0.85rem 1rem;
+    padding: 0.65rem 1rem;
 }
 .st-key-brief_metrics [data-testid="stMetricValue"] { font-size: 1.7rem; }
 .st-key-brief_metrics [data-testid="stMetricLabel"] { font-size: 0.8rem; }
@@ -80,10 +81,15 @@
     overflow-wrap: anywhere;
     font-size: 0.85rem;
 }
+.st-key-finding_evidence pre, .st-key-preview_source pre {
+    white-space: pre-wrap; /* Preserve quoted spacing and line breaks while allowing wrapping. */
+    overflow-wrap: anywhere; /* Break an unspaced value if it would otherwise overflow. */
+}
+.st-key-preview_empty { padding: 2rem; margin-top: 0.1rem; border-style: dashed; }
 .st-key-sidebar_footer { margin-top: 1.5rem; }
 
 @media (max-width: 800px) { /* Use browser viewport width, independent of the available workspace width. */
-    .stMainBlockContainer { padding: 1.3rem 1rem 2rem; }
+    .stMainBlockContainer { padding: 4rem 1rem 2rem; }
     .stApp h1 { font-size: 1.65rem; }
     .st-key-brief_tabs [role="tablist"] { gap: 0.8rem; }
     .st-key-brief_tabs [role="tab"] { font-size: 0.85rem; }

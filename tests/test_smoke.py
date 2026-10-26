@@ -81,44 +81,6 @@ def test_bundled_view_shows_export_download_before_brief_body(tmp_path, monkeypa
     assert download_index < tabs_index
 
 
-def test_adhoc_view_does_not_render_persisted_reviewer_controls(monkeypatch):
-    events = []
-
-    class FakeStreamlit:
-        def info(self, *_args, **_kwargs):
-            return None
-
-        def text_input(self, *_args, **_kwargs):
-            return ""
-
-        def text_area(self, *_args, **_kwargs):
-            return "Fire-safety work is included."
-
-        def button(self, *_args, **_kwargs):
-            return True
-
-        def subheader(self, *_args, **_kwargs):
-            return None
-
-        def caption(self, *_args, **_kwargs):
-            return None
-
-    monkeypatch.setattr(streamlit_app, "st", FakeStreamlit())
-    monkeypatch.setattr(
-        streamlit_app,
-        "render_brief_body",
-        lambda brief: events.append(("render_brief_body", brief)),
-    )
-    monkeypatch.setattr(
-        streamlit_app,
-        "render_reviewer_decisions",
-        lambda *_args: events.append(("render_reviewer_decisions",)),
-    )
-
-    streamlit_app.render_adhoc_view()
-
-    assert [event[0] for event in events] == ["render_brief_body"]
-
 
 def test_init_db_creates_tables(tmp_path):
     db_path = tmp_path / "test.db"

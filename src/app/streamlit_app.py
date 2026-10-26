@@ -27,6 +27,7 @@ if str(ROOT) not in sys.path:
 import streamlit as st  # noqa: E402
 
 from src.ai.risk_extract import extract_brief  # noqa: E402
+from src.app.guide import show_workflow_guide  # noqa: E402
 from src.app.review import (  # noqa: E402
     REVIEW_FILTERS,
     brief_findings,
@@ -149,19 +150,29 @@ def _bullets(items: list[str], empty_text: str) -> None:
     st.markdown("\n".join(f"- {item}" for item in items))
 
 
-def render_brief_body(brief: InspectionBrief) -> None:
+def _select_brief_tab(label: str) -> None:
+    st.session_state["brief_tabs"] = label
+
+
+def _render_scope_tags(scopes: list[str]) -> None:
+    """Treat generated scope names as text inside decorative tags."""
+    tags = "".join(f'<span class="scope-tag">{escape(scope)}</span>' for scope in scopes)
+    st.html(f'<div class="scope-tags">{tags}</div>')
+
+
+def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> None:
     """Show a compact overview without duplicating scopes and focus areas."""
     summary, questions = st.columns([1.1, 1], gap="large")
     with summary, st.container(border=True, key="overview_summary"):
         st.subheader("At a glance", anchor=False)
-        st.write(brief.summary)
+        total = len(brief.risk_domains) + len(brief.missing_info)
+        st.write(
+            f"{total} generated {'finding' if total == 1 else 'findings'} to verify "
+            "against the tender documentation."
+        )
         st.markdown("**Detected technical scopes**")
         if brief.technical_scopes:
-            tags = "".join(
-                f'<span class="scope-tag">{escape(scope)}</span>'
-                for scope in brief.technical_scopes
-            )
-            st.html(f'<div class="scope-tags">{tags}</div>')
+            _render_scope_tags(brief.technical_scopes)
         else:
             st.caption("No technical scopes matched. Read the source manually.")
         if brief.risk_domains != brief.technical_scopes:
@@ -172,6 +183,11 @@ def render_brief_body(brief: InspectionBrief) -> None:
             brief.missing_info,
             "No explicit gaps matched. This does not establish completeness.",
         )
+        if persisted and total:
+            st.button(
+                "Start reviewing", icon=":material/arrow_forward:", type="primary",
+                on_click=_select_brief_tab, args=("Review findings",),
+            )
     with questions:
         st.subheader("Questions to take into review", anchor=False)
         st.caption("Suggested prompts to check against the full tender documentation.")
@@ -492,7 +508,7 @@ def render_bundled_view() -> None:
         on_change="rerun",
     )
     with overview:
-        render_brief_body(export_payload.brief)
+        render_brief_body(export_payload.brief, persisted=True)
     with decisions:
         render_reviewer_decisions(export_payload)
     with evidence:
@@ -547,6 +563,8 @@ def render_run_details(payload: VersionedBriefExport) -> None:
         st.markdown("**Source fingerprint · SHA-256**")
         st.code(payload.processing_run.source_content_fingerprint, language=None, wrap_lines=True)
         st.caption("Decisions belong to this brief. Reprocessing creates a new brief with its own review history.")
+        st.markdown("**Original generated summary**")
+        st.write(payload.brief.summary)
     with validation:
         st.subheader("Validation snapshot", anchor=False)
         render_validation_snapshot()
@@ -599,47 +617,93 @@ def render_validation_snapshot() -> None:
 
 
 def render_adhoc_view() -> None:
-    """Render session-only analysis for a pasted public excerpt."""
-    st.info(
-        "Paste a public, non-confidential excerpt to generate a review brief. "
-        "It is processed only in this session and is not saved."
-    )
+    """Keep input beside a persistent, session-only preview."""
+    input_column, preview_column = st.columns([1, 1.15], gap="large")
+    draft = st.session_state.get("adhoc_draft", {})
+    for field in ("title", "url", "text"):
+        key = f"adhoc_{field}"
+        if key not in st.session_state:
+            st.session_state[key] = draft.get(field, "")
 
-    title = st.text_input(
-        "Document title (optional)",
-        help="Used only if the pasted text does not contain a TITLE: line.",
-    )
-    source_url = st.text_input(
-        "Source URL (optional)",
-        help="Used for reference only; the application does not open or fetch the URL.",
-    )
-    text = st.text_area(
-        "Paste a public tender or technical document excerpt",
-        height=240,
-        help="Public, non-confidential text only; maximum 50,000 characters.",
-    )
+    with input_column, st.container(border=True, key="excerpt_input"):
+        st.subheader("Public excerpt", anchor=False)
+        st.caption("Public, non-confidential text only · Up to 50,000 characters")
+        with st.form("adhoc_form", border=False):
+            text = st.text_area(
+                "Paste a public tender or technical document excerpt",
+                height=260, max_chars=MAX_ADHOC_CHARS, key="adhoc_text",
+                placeholder="Paste the tender scope, technical requirements, or a public notice excerpt…",
+            )
+            title = st.text_input(
+                "Document title (optional)", key="adhoc_title",
+                help="Used only if the pasted text does not contain a TITLE: line.",
+            )
+            source_url = st.text_input(
+                "Source URL (optional)", key="adhoc_url",
+                help="Reference metadata only. The application does not fetch this URL.",
+            )
+            submitted = st.form_submit_button(
+                "Generate review brief", type="primary", icon=":material/play_arrow:", width="stretch",
+            )
+        st.caption("Processed in this session. No saved decisions or JSON export.")
+        if submitted:
+            st.session_state["adhoc_draft"] = {"title": title, "url": source_url, "text": text}
+            error = adhoc_input_error(text)
+            st.session_state["adhoc_input_invalid"] = bool(error)
+            if error:
+                # Retain the last successful preview when a later submission is invalid.
+                st.warning(error)
+            else:
+                document = build_document_from_text(
+                    text, source_url=source_url.strip(),
+                    default_title=title.strip() or "Pasted public excerpt",
+                )
+                st.session_state["adhoc_preview"] = (document, extract_brief(document))
 
-    if not st.button("Generate review brief"):
-        return
+    with preview_column:
+        preview = st.session_state.get("adhoc_preview")
+        if preview is None:
+            with st.container(border=True, key="preview_empty"):
+                st.subheader("Your brief will appear here", anchor=False)
+                st.write("Paste an excerpt on the left, then generate a review brief.")
+                st.caption("Explore detected scopes, information gaps, review questions, and the source text behind each match.")
+            return
 
-    error = adhoc_input_error(text)
-    if error:
-        st.warning(error)
-        return
-
-    document = build_document_from_text(
-        text,
-        source_url=source_url.strip(),
-        default_title=title.strip() or "Pasted public excerpt",
-    )
-    brief = extract_brief(document)
-
-    st.subheader("Review brief preview")
-    render_brief_body(brief)
-    st.caption(
-        "This preview is not stored. Validation results for bundled samples "
-        "do not apply to pasted excerpts."
-    )
+        document, brief = preview
+        st.subheader("Review brief preview", anchor=False)
+        st.badge("Session only", icon=":material/visibility:", color="gray")
+        st.write(document.title)
+        if st.session_state.get("adhoc_input_invalid"):
+            st.info("Your latest input was not analysed. Showing the last generated preview.")
+        else:
+            st.caption("From the last generated excerpt. Submit again to update this preview.")
+        focus, gaps, evidence = st.columns(3)
+        focus.metric("Focus areas", len(brief.risk_domains))
+        gaps.metric("Information gaps", len(brief.missing_info))
+        evidence.metric("Source snippets", len(brief.evidence))
+        findings, snippets, questions, source = st.tabs(
+            ["Findings", "Evidence", "Questions", "Source"], key="preview_tabs",
+        )
+        with findings:
+            st.markdown("**Detected technical scopes**")
+            if brief.technical_scopes:
+                _render_scope_tags(brief.technical_scopes)
+            else:
+                st.caption("No technical scopes matched. Read the excerpt manually.")
+            if brief.risk_domains != brief.technical_scopes:
+                _bullets(brief.risk_domains, "No review focus areas detected.")
+            st.markdown("**Information gaps**")
+            _bullets(brief.missing_info, "No explicit gaps matched. This does not establish completeness.")
+        with snippets:
+            render_evidence_table(brief)
+        with questions:
+            _bullets(brief.review_questions, "No questions generated. Read the source manually.")
+        with source:
+            if document.source_url:
+                st.write(f"**Source URL:** {document.source_url}")
+            with st.container(border=True, height=360, key="preview_source"):
+                st.text(document.clean_text)
+        st.caption("Keyword-based preview · Confidence: Low · Human review required. Bundled validation does not establish quality for pasted text.")
 
 
 def render() -> None:
@@ -663,13 +727,13 @@ def render() -> None:
             label_visibility="collapsed",
         )
 
-    st.html('<div class="eyebrow">Tender-to-Inspection Brief</div>')
+    with st.container(horizontal=True, horizontal_alignment="distribute", vertical_alignment="center", key="page_header"):
+        st.title(page, width="content", anchor=False)
+        if st.button("How it works", icon=":material/help_outline:", key="open_guide"):
+            show_workflow_guide()
     if page == "Review workspace":
-        st.title("Review workspace")
-        st.caption("Understand the scope. Check the evidence. Record your decisions.")
         render_bundled_view()
     else:
-        st.title("Analyse a public excerpt")
         st.caption("Turn public tender text into a source-traced review preview.")
         render_adhoc_view()
 
