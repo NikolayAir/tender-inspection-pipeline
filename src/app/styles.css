@@ -85,6 +85,8 @@
     white-space: pre-wrap; /* Preserve quoted spacing and line breaks while allowing wrapping. */
     overflow-wrap: anywhere; /* Break an unspaced value if it would otherwise overflow. */
 }
+.st-key-evidence_quote { padding: 1rem; }
+.st-key-evidence_quote pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .st-key-preview_empty { padding: 2rem; margin-top: 0.1rem; border-style: dashed; }
 .st-key-sidebar_footer { margin-top: 1.5rem; }
 .st-key-brief_tabs, .st-key-preview_result {
@@ -101,6 +103,25 @@
     .st-key-brief_tabs [role="tab"] { font-size: 0.85rem; }
     .st-key-brief_metrics [data-testid="stMetric"] { padding: 0.7rem; }
     .st-key-brief_metrics [data-testid="stMetricValue"] { font-size: 1.4rem; }
+    .st-key-brief_metrics [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .st-key-preview_metrics [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+    .st-key-review_controls [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .st-key-review_controls [data-testid="stColumn"]:nth-child(-n+2) { grid-column: 1 / -1; }
+    .st-key-brief_metrics [data-testid="stColumn"],
+    .st-key-preview_metrics [data-testid="stColumn"],
+    .st-key-review_controls [data-testid="stColumn"] { width: 100%; min-width: 0; }
+    .st-key-preview_metrics [data-testid="stMetricValue"] { font-size: 1.5rem; }
+    .st-key-preview_metrics [data-testid="stMetricLabel"] { font-size: 0.72rem; }
 }
 
 /* Soft elevation separates work surfaces without strong blocks of colour. */

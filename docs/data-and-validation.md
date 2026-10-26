@@ -32,7 +32,7 @@ A `match` means agreement with the declared expectations for that sample. It doe
 
 The [validation regression test](../tests/test_validation.py) reruns extraction and compares the detected domain set with the CSV's recorded `extracted_domains`. It guards against changes in the baseline output; it does not evaluate precision or recall against an independent gold standard. Intentional extraction changes require reviewing the recorded output and notes.
 
-The interface's validation snapshot reads the committed CSV for display. It does not run a new evaluation of the selected document or pasted text.
+The validation snapshot in **Run details** reads the committed CSV for display. It does not run a new evaluation of the selected document or pasted text. **Evidence & source** separately pairs complete source snippets with the selected document excerpt.
 
 ## Interpretation limits
 

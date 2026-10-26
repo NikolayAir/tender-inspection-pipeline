@@ -49,12 +49,14 @@ def test_filtered_queue_saves_to_original_target_and_updates_progress(reviewed_a
     history = database.get_reviewer_decision_history(brief_id, db_path)
     assert [(event.target_index, event.state) for event in history] == [(0, "accepted"), (1, "needs_follow_up")]
     assert history[-1].note == "Check electrical drawings."
+    assert app.get("toast")
     assert not any(element.proto.unsafe_allow_javascript for element in app.get("html"))
     assert app.metric[3].value == "2 / 9"
     assert app.selectbox(key=f"review_queue:{brief_id}").value == ("risk_domain", 2)
     app.selectbox(key=f"review_filter:{brief_id}").select("Needs follow-up").run()
     assert app.selectbox(key=f"review_queue:{brief_id}").value == ("risk_domain", 1)
     assert app.text_area[0].value == "Check electrical drawings."
+    assert not app.get("toast")
 
 
 def test_next_previous_and_empty_filter_do_not_write_decisions(reviewed_app):
@@ -83,6 +85,34 @@ def test_overview_action_opens_review_without_writing_a_decision(reviewed_app):
     assert ".st-key-brief_tabs" in effects[0].proto.body
     app.run()
     assert not any(element.proto.unsafe_allow_javascript for element in app.get("html"))
+
+
+def test_gap_selection_saves_the_gap_index_and_shows_its_own_evidence(reviewed_app):
+    app, db_path, brief_id = reviewed_app
+    app.selectbox(key=f"review_queue:{brief_id}").select(("missing_info", 1)).run()
+    assert not app.exception
+    assert any("structural drawings" in item.value for item in app.text)
+    app.selectbox(key=f"reviewer:{brief_id}:missing_info:1:state").select("rejected")
+    app.text_area(key=f"reviewer:{brief_id}:missing_info:1:note").set_value("Checked separately.")
+    next(button for button in app.button if button.label == "Save decision").click().run()
+
+    assert not app.exception
+    event = database.get_reviewer_decision_history(brief_id, db_path)[-1]
+    assert (event.target_type, event.target_index, event.state) == ("missing_info", 1, "rejected")
+
+
+def test_source_inspector_shows_full_selected_quote_and_preserves_source(reviewed_app):
+    app, db_path, brief_id = reviewed_app
+    document_id = next(document["id"] for document in database.get_documents(db_path) if document["source"] == "synthetic_sample")
+    payload = database.get_latest_brief_export(document_id, db_path)
+    assert payload is not None
+    index = len(payload.brief.evidence) - 1
+    app.selectbox(key=f"evidence_match:{document_id}").select(index).run()
+
+    assert not app.exception
+    assert any(item.value == payload.brief.evidence[index].snippet for item in app.text)
+    assert any(item.value == load_sample().clean_text for item in app.text)
+    assert len(database.get_reviewer_decision_history(brief_id, db_path)) == 1
 
 
 def test_gap_evidence_is_linked_to_its_own_sentence_only():

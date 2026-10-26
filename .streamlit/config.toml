@@ -12,7 +12,7 @@ showSidebarBorder = true
 font = "sans serif"
 baseRadius = "0.65rem"
 buttonRadius = "0.5rem"
-headingFontWeights = [650, 650, 600, 600, 600, 600] # Weights for h1 through h6, in order.
+headingFontWeights = [700, 700, 600, 600, 600, 600] # Weights for h1 through h6, in order.
 
 [theme.sidebar]
 backgroundColor = "#F4F7F8"

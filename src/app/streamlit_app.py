@@ -41,7 +41,6 @@ from src.collect.sample_loader import build_document_from_text  # noqa: E402
 from src.db import database  # noqa: E402
 from src.exports import VersionedBriefExport, serialize_brief_export  # noqa: E402
 from src.models import (  # noqa: E402
-    EvidenceSnippet,
     InspectionBrief,
     ReviewerDecision,
     ReviewState,
@@ -90,19 +89,6 @@ def adhoc_input_error(text: str, max_chars: int = MAX_ADHOC_CHARS) -> str | None
 def brief_export_filename(document_id: int) -> str:
     """Return the deterministic filename used for one persisted brief export."""
     return f"inspection-brief-document-{document_id}.json"
-
-
-def evidence_rows(evidence: list[EvidenceSnippet]) -> list[dict]:
-    """Build list-of-dict rows for st.dataframe (no pandas dependency)."""
-    return [
-        {
-            "Category": category_for_term(ev.matched_term),
-            "Matched term": ev.matched_term,
-            "Location": ev.location,
-            "Snippet": ev.snippet,
-        }
-        for ev in evidence
-    ]
 
 
 def reviewer_widget_key(
@@ -200,25 +186,27 @@ def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> Non
             st.write("No questions generated. Start by reading the source excerpt.")
 
 
-def render_evidence_table(brief: InspectionBrief) -> None:
-    """Show evidence separately from the overview and decision forms."""
-    rows = evidence_rows(brief.evidence)
-    if rows:
-        st.dataframe(
-            rows,
-            hide_index=True,
-            width="stretch",
-            column_config={
-                "Category": st.column_config.TextColumn("Category", width="small"),
-                "Matched term": st.column_config.TextColumn(
-                    "Matched term", width="small"
-                ),
-                "Location": st.column_config.TextColumn("Location", width="small"),
-                "Snippet": st.column_config.TextColumn("Snippet", width="large"),
-            },
-        )
-    else:
-        st.markdown("*No source evidence captured*")
+def render_evidence_inspector(brief: InspectionBrief, *, key: str) -> None:
+    """Read complete source snippets without a horizontally clipped table."""
+    if not brief.evidence:
+        st.info("No source evidence was captured. Read the source excerpt manually.")
+        return
+    indices = list(range(len(brief.evidence)))
+    if st.session_state.get(key, 0) not in indices:
+        st.session_state[key] = 0
+    selected = st.selectbox(
+        "Evidence snippet", indices, key=key,
+        format_func=lambda index: (
+            f"{category_for_term(brief.evidence[index].matched_term)} "
+            f"· {brief.evidence[index].matched_term}"
+        ),
+    )
+    snippet = brief.evidence[selected]
+    with st.container(border=True, key="evidence_quote"):
+        st.markdown(f"**{category_for_term(snippet.matched_term)}**")
+        st.caption(f'Matched term: "{snippet.matched_term}" · {snippet.location} (approximate)')
+        st.text(snippet.snippet)
+    st.caption(f"Source match {selected + 1} of {len(brief.evidence)}. Keyword matches require human verification.")
 
 
 def _render_reviewer_target(
@@ -339,14 +327,23 @@ def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
         st.info("This brief contains no generated findings that require decisions.")
         return
 
+    # Saving under a status filter can remove the previous finding from view.
+    # Consume its confirmation here so it is still shown once, even for an empty queue.
+    for finding in findings:
+        flash_key = reviewer_widget_key(payload.brief_id, *finding.identity, "saved")
+        message = st.session_state.pop(flash_key, None)
+        if message:
+            st.toast(message, icon="✅")
+
     latest = latest_decisions(payload)
     history = [
         StoredReviewerDecision(brief_id=payload.brief_id, **event.model_dump())
         for event in payload.reviewer_decisions
     ]
-    status_column, finding_column, previous, following = st.columns(
-        [1, 2.7, 0.65, 0.65], vertical_alignment="bottom",
-    )
+    with st.container(key="review_controls"):
+        status_column, finding_column, previous, following = st.columns(
+            [1, 2.7, 0.65, 0.65], vertical_alignment="bottom",
+        )
     with status_column:
         status = st.selectbox(
             "Review status", list(REVIEW_FILTERS), key=f"review_filter:{payload.brief_id}",
@@ -539,7 +536,7 @@ def render_source_evidence(document: dict, brief: InspectionBrief) -> None:
     with evidence:
         st.subheader("Evidence index", anchor=False)
         st.caption("Keyword matches with approximate source locations.")
-        render_evidence_table(brief)
+        render_evidence_inspector(brief, key=f"evidence_match:{document['id']}")
     with source:
         st.subheader("Source excerpt", anchor=False)
         st.write(f"**Source:** {document['source']}")
@@ -556,12 +553,15 @@ def render_run_details(payload: VersionedBriefExport) -> None:
     run, validation = st.columns([1, 1.2], gap="large")
     with run:
         st.subheader("Processing record", anchor=False)
-        st.write(f"**Brief:** #{payload.brief_id} · **Run:** #{payload.processing_run.id}")
-        st.write(f"**Processed:** {payload.processing_run.processed_at:%Y-%m-%d %H:%M UTC}")
-        st.write(f"**Extractor:** {payload.processing_run.extractor_name}")
-        st.write(f"**Extractor version:** {payload.processing_run.extractor_version}")
-        st.write(f"**Brief schema:** {payload.processing_run.brief_schema_version}")
-        st.write(f"**Export schema:** {payload.export_schema_version}")
+        record = [
+            f"**Brief:** #{payload.brief_id} · **Run:** #{payload.processing_run.id}",
+            f"**Processed:** {payload.processing_run.processed_at:%Y-%m-%d %H:%M UTC}",
+            f"**Extractor:** {payload.processing_run.extractor_name}",
+            f"**Extractor version:** {payload.processing_run.extractor_version}",
+            f"**Brief schema:** {payload.processing_run.brief_schema_version}",
+            f"**Export schema:** {payload.export_schema_version}",
+        ]
+        st.markdown("  \n".join(record))
         st.markdown("**Source fingerprint · SHA-256**")
         st.code(payload.processing_run.source_content_fingerprint, language=None, wrap_lines=True)
         st.caption("Decisions belong to this brief. Reprocessing creates a new brief with its own review history.")
@@ -596,18 +596,13 @@ def render_validation_snapshot() -> None:
                 detail_rows,
                 hide_index=True,
                 width="stretch",
+                column_order=["sample_id", "source_type", "match_status"],
                 column_config={
-                    "sample_id": st.column_config.TextColumn("Sample", width="small"),
+                    "sample_id": st.column_config.TextColumn("Sample", width="medium"),
                     "source_type": st.column_config.TextColumn(
-                        "Source type", width="small"
+                        "Source type", width="medium"
                     ),
                     "match_status": st.column_config.TextColumn("Match", width="small"),
-                    "manually_expected_domains": st.column_config.TextColumn(
-                        "Manually expected domains", width="large"
-                    ),
-                    "extracted_domains": st.column_config.TextColumn(
-                        "Extracted domains", width="large"
-                    ),
                 },
             )
         st.caption(
@@ -680,7 +675,8 @@ def render_adhoc_view() -> None:
             st.info("Your latest input was not analysed. Showing the last generated preview.")
         else:
             st.caption("From the last generated excerpt. Submit again to update this preview.")
-        focus, gaps, evidence = st.columns(3)
+        with st.container(key="preview_metrics"):
+            focus, gaps, evidence = st.columns(3)
         focus.metric("Focus areas", len(brief.risk_domains))
         gaps.metric("Information gaps", len(brief.missing_info))
         evidence.metric("Source snippets", len(brief.evidence))
@@ -698,7 +694,7 @@ def render_adhoc_view() -> None:
             st.markdown("**Information gaps**")
             _bullets(brief.missing_info, "No explicit gaps matched. This does not establish completeness.")
         with snippets:
-            render_evidence_table(brief)
+            render_evidence_inspector(brief, key="preview_evidence_match")
         with questions:
             _bullets(brief.review_questions, "No questions generated. Read the source manually.")
         with source:

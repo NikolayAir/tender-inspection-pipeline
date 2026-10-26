@@ -6,22 +6,26 @@ Tender-to-Inspection Brief provides two review paths:
 
 | Path | Input | Saved results | Reviewer decisions | JSON download |
 | --- | --- | --- | --- | --- |
-| **Bundled samples** | Three committed public or synthetic excerpts | SQLite | Supported | Supported |
+| **Review workspace** | Three bundled public or synthetic excerpts | SQLite | Supported | Supported |
 | **Analyse a public excerpt** | Pasted public, non-confidential text | Session-only preview | Unavailable | Unavailable |
 
 ## Review a bundled sample
 
-1. Open **Bundled samples** and select a document. Synthetic fixtures are identified as test data; public excerpts show their recorded source URL.
-2. Read the source excerpt and generated summary, technical scopes, review focus areas, information gaps, and suggested questions.
-3. Check the evidence table. Each entry includes a matched term, source snippet, and approximate location. A match identifies a possible review topic; the reviewer determines what needs follow-up.
-4. Record decisions for the generated focus areas and information gaps.
+1. Open **Review workspace** and select a document under **Bundled samples** in the sidebar. The document badge distinguishes public excerpts from synthetic test data.
+2. Scan **Overview** for technical scopes, information gaps, and suggested questions. The header shows the number of findings, source snippets, and saved decisions.
+3. Select **Start reviewing**, or open **Review findings**. Choose one finding and compare its supporting source text on the left with the decision form on the right. Use **Previous**, **Next**, or the finding selector to move through the brief; **Review status** filters the queue.
+4. Use **Evidence & source** to read complete matching snippets beside the original excerpt and its source attribution. **Run details** contains processing versions, the source fingerprint, the original generated summary, and the qualitative validation snapshot.
 5. Use **Download review brief (JSON)** to save the result with its processing provenance and decision history.
 
-Suggested questions are prompts for the reviewer, not conclusions about the tender. The current extractor always returns `confidence="low"` and `human_review_required=true`.
+On narrow screens, the workspace uses a compact metric grid and stacks the source and decision panels. The sidebar starts open on a wide screen and collapsed on a narrow screen. When hidden, use **Menu & samples** at the top left to change workflows or samples; the control has a visible label as well as an arrow.
+
+Suggested questions are prompts for the reviewer, not conclusions about the tender. A keyword match identifies a possible review topic; the reviewer determines what needs follow-up. The current extractor always returns `confidence="low"` and `human_review_required=true`.
 
 ### Record decisions
 
 For each generated focus area or information gap, select **Accepted**, **Rejected**, or **Needs follow-up**, optionally add a note, and save. Notes are limited to 2,000 characters. Items without a saved decision appear as **Unreviewed**; displaying that state does not create a database record.
+
+Save before switching findings. When a save changes an item's status, a filtered queue may advance to another matching finding. The confirmation appears once, and the saved-decision count updates. An empty filter means no findings match that status; change the filter to continue. **Decisions saved** counts findings with a recorded decision, including those still marked **Needs follow-up**.
 
 Each save appends an event. The latest event determines the displayed state, and earlier states and notes remain in the history. Saving a decision does not alter the generated brief. Generated questions are not separate decision targets.
 
@@ -29,13 +33,23 @@ Decisions belong to the specific brief being reviewed. If an explicit pipeline r
 
 ## Preview a public excerpt
 
-1. Open **Analyse a public excerpt**.
+1. Open **Analyse a public excerpt** from the sidebar.
 2. Paste non-empty public, non-confidential text, up to 50,000 characters. A document title and source URL are optional; the URL is reference metadata and is not fetched. A `TITLE:` line in the text takes precedence over the optional title field.
-3. Select **Generate review brief**, then inspect the findings and evidence.
+3. Select **Generate review brief**. Inspect the result beside the input using **Findings**, **Evidence**, **Questions**, and **Source**.
 
-This path uses the same text cleaning, extraction, and brief display as the bundled workflow. Pasted content is processed only in the current session; it is not written to SQLite or exported. The application does not scrape websites, parse PDFs, or call an external model or API.
+The last generated preview and submitted input remain available when opening help or switching workflows in the same session. Edit the input and submit again to update the result. If a new submission is invalid, the previous preview remains clearly labelled. Reloading the browser starts a new session and clears the preview.
+
+This path uses the same text cleaning and extraction as the bundled workflow. Pasted content is processed only in the current session; it is not written to SQLite or exported. The application does not scrape websites, parse PDFs, or call an external model or API.
 
 The bundled validation results do not establish extraction quality for pasted text. See [data and validation](data-and-validation.md) for the tested examples and limitations.
+
+## In-app help and navigation
+
+**How it works** opens a guide over the current workspace. **Quick start** walks through a bundled review, **Pasted excerpts** explains the session preview, **Behind the brief** describes the rules and limits, and **Command line** shows local pipeline commands. Close the dialog or press Escape to return.
+
+**Start reviewing** brings the review controls into view. A successful pasted analysis reveals the preview when it is outside the useful viewport, including below the input on a narrow screen. Saving a decision, submitting invalid input, and ordinary reruns retain the current position. The reveal respects reduced-motion preferences.
+
+When the sidebar is hidden, **Menu & samples** remains visible in the header. It opens both workflow navigation and the document selector, including on a narrow screen.
 
 ## Saved results and recovery
 

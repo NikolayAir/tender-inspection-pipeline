@@ -52,12 +52,13 @@ def category_for_term(term: str) -> str:
 
 def brief_findings(brief: InspectionBrief) -> list[Finding]:
     """Flatten generated findings while retaining their original collection index."""
+    groups: tuple[tuple[ReviewTargetType, list[str]], ...] = (
+        ("risk_domain", brief.risk_domains),
+        ("missing_info", brief.missing_info),
+    )
     return [
         Finding(target_type, index, value)
-        for target_type, values in (
-            ("risk_domain", brief.risk_domains),
-            ("missing_info", brief.missing_info),
-        )
+        for target_type, values in groups
         for index, value in enumerate(values)
     ]
 

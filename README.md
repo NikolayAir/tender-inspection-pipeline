@@ -8,24 +8,24 @@ The application uses deterministic keyword rules to identify technical scopes, f
 
 ## Review workflow
 
-1. Choose a bundled public or synthetic sample, or paste a public, non-confidential excerpt.
-2. Inspect the generated brief and check each finding against the source evidence.
+1. Choose a bundled public or synthetic sample in **Review workspace**, or open **Analyse a public excerpt** to paste public, non-confidential text.
+2. Scan the overview, then check one finding at a time with the source evidence and decision form side by side.
 3. For bundled samples, save **Accepted**, **Rejected**, or **Needs follow-up** decisions with optional notes, then download the brief as JSON.
 
-See the [user guide](docs/user-guide.md) for reviewing findings, saving decisions, and downloading results.
+Open **How it works** in the application for a short walkthrough. See the [user guide](docs/user-guide.md) for the workspace tabs, review filters, session previews, and downloads.
 
 ## How it works
 
-A Streamlit interface and a command-line pipeline share Python extraction and Pydantic models. Bundled results are saved in SQLite and reused on later visits; pasted excerpts produce a session-only preview.
+The Streamlit interface and command-line pipeline use the same text cleaning, keyword rules and brief models. Bundled results are saved in SQLite and reused on later visits. Pasted excerpts produce a temporary preview for the current browser session.
 
 ```mermaid
 flowchart TD
     bundled["Bundled sample<br/>public or synthetic excerpt"] --> normalise("Normalise text")
     pasted["Pasted public excerpt"] --> normalise
     normalise --> extract("Apply deterministic<br/>keyword rules")
-    extract --> brief["InspectionBrief<br/>summary + technical scopes<br/>review focus areas + gaps<br/>questions + source evidence"]
+    extract --> brief["InspectionBrief<br/>summary + technical scopes<br/>review focus areas + gap signals<br/>questions + source evidence"]
 
-    brief -->|Pasted excerpt| preview("Inspect session preview<br/>no storage or export")
+    brief -->|Pasted excerpt| preview("Inspect session preview<br/>no saved decisions or export")
     brief -->|Bundled sample| save("Record provenance<br/>and save atomically")
     save --> db[("SQLite<br/>documents + runs<br/>immutable briefs<br/>reviewer decision history")]
     db -->|Read saved brief| review("Human review<br/>verify findings against<br/>source evidence")
@@ -36,9 +36,10 @@ flowchart TD
 Rounded boxes denote actions, square-cornered boxes denote inputs or outputs, and the cylinder denotes persistent storage. JSON export is available before or after reviewer decisions are saved.
 
 - Each persisted brief links to a processing run with extractor and schema versions and a SHA-256 fingerprint of the normalised source.
-- Reviewer decisions append history events without changing the generated brief. Pasted previews have no saved decisions or export.
+- Reviewer decisions append history events without changing the generated brief.
 - Explicit reprocessing appends a new run and brief; earlier decisions remain attached to the earlier brief.
-- Failed sample processing preserves previously saved data. The interface reads the source, findings, decisions, and export from one SQLite snapshot.
+- Failed sample processing preserves previously saved data.
+- The displayed review and JSON export are built from the same SQLite read snapshot.
 
 See [architecture and data contracts](docs/architecture.md) for processing steps and exact guarantees, and the [decision log](docs/decision_log.md) for rationale and trade-offs.
 

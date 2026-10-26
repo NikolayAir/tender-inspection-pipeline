@@ -68,6 +68,8 @@ git diff --check
 
 Run the isolated pipeline smoke check above to exercise the bundled command-line workflow. Tests use temporary databases.
 
+For browser checks that save decisions or simulate damaged data, use a disposable checkout and run the app from that checkout's root. The app uses that copy's default database, keeping these checks separate from your normal review history.
+
 The test suite covers:
 
 | Area | Tests |
@@ -76,9 +78,14 @@ The test suite covers:
 | Processing provenance and legacy restoration | [Provenance](../tests/test_provenance.py) |
 | Atomic writes, recovery, and database access | [Transactions](../tests/test_pipeline_transactions.py), [sample recovery](../tests/test_sample_recovery.py), [connections](../tests/test_database_connections.py) |
 | Reviewer decisions and interface behaviour | [Decision history](../tests/test_reviewer_decisions.py), [reviewer UI](../tests/test_reviewer_ui.py), [recovery UI](../tests/test_sample_recovery_ui.py), [review snapshots](../tests/test_review_snapshot.py) |
+| Focused workspace and session previews | [Review queues and source selection](../tests/test_review_workspace.py), [preview persistence and storage isolation](../tests/test_excerpt_workspace.py) |
 | Export contracts and stable output across runs | [Exports](../tests/test_exports.py), [reproducibility](../tests/test_reproducibility.py) |
 
 These checks verify software behaviour. They do not establish statistical extraction accuracy or engineering correctness.
+
+For UI changes, also inspect the app in a browser at desktop and narrow widths. Check tab navigation, full source snippets, saving a decision under a status filter, opening and closing **How it works**, and generating a pasted preview. AppTest verifies one-shot reveal requests and their absence during saves or invalid submissions; actual scrolling, focus, responsive layout, and reduced-motion behaviour require browser verification.
+
+UI presentation lives in `src/app/streamlit_app.py`, with pure finding and evidence helpers in `src/app/review.py`, the guide in `src/app/guide.py`, and one-shot reveal effects in `src/app/scroll.py` and `scroll.js`. Theme colours use `.streamlit/config.toml`; `styles.css` scopes layout refinements to named containers, and `navigation.css` gives the native sidebar opener its visible **Menu & samples** label. The reveal script is trusted local code and receives only fixed target selectors, never source text or metadata.
 
 ## Continuous integration
 
