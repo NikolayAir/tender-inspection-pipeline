@@ -715,8 +715,10 @@ def render() -> None:
         page_title="Tender-to-Inspection Brief",
         page_icon=":material/fact_check:",
         layout="wide",
+        initial_sidebar_state="auto",
     )
     st.html(Path(__file__).with_name("styles.css"))
+    st.html(Path(__file__).with_name("navigation.css"))
     with st.sidebar:
         st.html(
             '<div class="app-brand"><div class="brand-mark">ti</div>'
