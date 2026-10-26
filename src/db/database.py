@@ -510,6 +510,7 @@ def insert_reviewer_decision(
                 "does not reference a persisted brief"
             )
 
+        # Validate the immutable brief's original list, never a filtered UI queue.
         target_column = (
             "risk_domains"
             if decision.target_type == "risk_domain"

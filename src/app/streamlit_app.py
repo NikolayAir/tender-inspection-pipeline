@@ -26,10 +26,14 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st  # noqa: E402
 
-from src.ai.risk_extract import (  # noqa: E402
-    KEYWORD_DOMAINS,
-    MISSING_INFO_PHRASES,
-    extract_brief,
+from src.ai.risk_extract import extract_brief  # noqa: E402
+from src.app.review import (  # noqa: E402
+    REVIEW_FILTERS,
+    brief_findings,
+    category_for_term,
+    evidence_for_finding,
+    filter_findings,
+    latest_decisions,
 )
 from src.collect.sample_loader import build_document_from_text  # noqa: E402
 from src.db import database  # noqa: E402
@@ -63,22 +67,6 @@ REVIEW_STATE_LABELS: dict[ReviewState | None, str] = {
     "rejected": "Rejected",
     "needs_follow_up": "Needs follow-up",
 }
-
-
-def category_for_term(term: str) -> str:
-    """Map a matched term to a readable category for the evidence table.
-
-    Display-only label lookup (not extraction logic): missing-information phrases
-    become "Missing information", risk keywords map to their domain. The term is
-    normalised with lower().strip() so matching is case-insensitive.
-    """
-    normalized = term.lower().strip()
-    if normalized in {p.lower().strip() for p in MISSING_INFO_PHRASES}:
-        return "Missing information"
-    for domain, keywords in KEYWORD_DOMAINS.items():
-        if normalized in {k.lower().strip() for k in keywords}:
-            return domain
-    return "Other"
 
 
 def adhoc_input_error(text: str, max_chars: int = MAX_ADHOC_CHARS) -> str | None:
@@ -222,6 +210,8 @@ def _render_reviewer_target(
     generated_value: str,
     current: StoredReviewerDecision | None,
     history: list[StoredReviewerDecision],
+    *,
+    show_finding: bool = True,
 ) -> None:
     """Render one generated finding with append-only reviewer controls."""
     flash_key = reviewer_widget_key(brief_id, target_type, target_index, "saved")
@@ -229,15 +219,18 @@ def _render_reviewer_target(
     if message:
         st.toast(message, icon="✅")
 
-    st.markdown("**Generated finding**")
-    st.write(generated_value)
+    if show_finding:
+        st.markdown("**Generated finding**")
+        st.write(generated_value)
 
     if current is None:
         st.write("**Current review status:**", "Unreviewed")
-        st.caption("No reviewer decision has been saved for this finding.")
+        if show_finding:
+            st.caption("No reviewer decision has been saved for this finding.")
     else:
         st.write("**Current review status:**", review_state_label(current.state))
-        st.write("**Current reviewer note:**", current.note or "No note provided")
+        if show_finding:
+            st.write("**Current reviewer note:**", current.note or "No note provided")
 
     form_key = reviewer_widget_key(
         brief_id, target_type, target_index, "decision_form"
@@ -266,12 +259,13 @@ def _render_reviewer_target(
             "Reviewer note (optional)",
             value=current.note if current and current.note else "",
             max_chars=2000,
+            height=110,
             key=reviewer_widget_key(
                 brief_id, target_type, target_index, "note"
             ),
             help="Saved notes are human-authored and limited to 2,000 characters.",
         )
-        submitted = st.form_submit_button("Save decision")
+        submitted = st.form_submit_button("Save decision", type="primary", width="stretch")
 
     if submitted:
         if selected_state is None:
@@ -313,61 +307,90 @@ def _render_reviewer_target(
             )
 
 
-def render_reviewer_decisions(
-    payload: VersionedBriefExport,
-) -> None:
-    """Render findings and decisions from the same snapshot as the JSON export."""
-    brief_id = payload.brief_id
-    brief = payload.brief
-    st.subheader("Reviewer decisions")
-    st.caption(
-        "Generated findings remain unchanged. Each saved reviewer decision "
-        "is recorded as a new history entry, preserving earlier decisions "
-        "and notes."
-    )
+def _move_finding(key: str, identities: list[tuple], offset: int) -> None:
+    """Move within the visible queue without changing persisted target indices."""
+    index = identities.index(st.session_state[key])
+    st.session_state[key] = identities[index + offset]
 
-    history = [
-        StoredReviewerDecision(brief_id=brief_id, **decision.model_dump())
-        for decision in payload.reviewer_decisions
-    ]
-    latest = {(decision.target_type, decision.target_index): decision for decision in history}
-    target_groups: tuple[
-        tuple[ReviewTargetType, str, str, list[str]], ...
-    ] = (
-        (
-            "risk_domain",
-            "Generated review focus areas",
-            "No review focus areas were generated for this brief.",
-            brief.risk_domains,
-        ),
-        (
-            "missing_info",
-            "Generated information gaps",
-            "No information gaps were generated for this brief.",
-            brief.missing_info,
-        ),
-    )
 
-    if not any(items for _, _, _, items in target_groups):
+def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
+    """Review one original finding beside its supporting source evidence."""
+    st.caption("Check the source on the left and record your decision on the right. Save before switching findings.")
+    findings = brief_findings(payload.brief)
+    if not findings:
         st.info("This brief contains no generated findings that require decisions.")
         return
 
-    for target_type, heading, empty_text, items in target_groups:
-        st.markdown(f"### {heading}")
-        if not items:
-            st.caption(empty_text)
-            continue
+    latest = latest_decisions(payload)
+    history = [
+        StoredReviewerDecision(brief_id=payload.brief_id, **event.model_dump())
+        for event in payload.reviewer_decisions
+    ]
+    status_column, finding_column, previous, following = st.columns(
+        [1, 2.7, 0.65, 0.65], vertical_alignment="bottom",
+    )
+    with status_column:
+        status = st.selectbox(
+            "Review status", list(REVIEW_FILTERS), key=f"review_filter:{payload.brief_id}",
+        )
+    visible = filter_findings(findings, latest, status)
+    if not visible:
+        st.info("No findings match this status. Choose another review status to continue.")
+        return
 
-        for target_index, generated_value in enumerate(items):
-            with st.container(border=True):
-                _render_reviewer_target(
-                    brief_id=brief_id,
-                    target_type=target_type,
-                    target_index=target_index,
-                    generated_value=generated_value,
-                    current=latest.get((target_type, target_index)),
-                    history=history,
-                )
+    identities = [finding.identity for finding in visible]
+    finding_map = {finding.identity: finding for finding in visible}
+    queue_key = f"review_queue:{payload.brief_id}"
+    if st.session_state.get(queue_key) not in identities:
+        st.session_state[queue_key] = identities[0]
+
+    def label(identity):
+        finding = finding_map[identity]
+        current = latest.get(identity)
+        state = review_state_label(current.state) if current else "Unreviewed"
+        value = finding.value if len(finding.value) <= 90 else finding.value[:87] + "…"
+        return f"{finding.kind} · {value} · {state}"
+
+    with finding_column:
+        selected = st.selectbox(
+            "Finding to review", identities, format_func=label, key=queue_key,
+        )
+    index = identities.index(selected)
+    previous.button(
+        "Previous", icon=":material/arrow_back:", width="stretch", disabled=index == 0,
+        on_click=_move_finding, args=(queue_key, identities, -1),
+    )
+    following.button(
+        "Next", icon=":material/arrow_forward:", icon_position="right", width="stretch",
+        disabled=index == len(identities) - 1,
+        on_click=_move_finding, args=(queue_key, identities, 1),
+    )
+    st.caption(f"Finding {index + 1} of {len(visible)} in this view · {len(latest)} of {len(findings)} have saved decisions")
+
+    finding = finding_map[selected]
+    source, decision = st.columns([1.15, 1], gap="large")
+    with source, st.container(border=True, key="finding_evidence"):
+        st.badge(finding.kind, color="gray")
+        st.subheader(finding.value, anchor=False)
+        st.markdown("**Supporting source evidence**")
+        snippets = evidence_for_finding(payload.brief, finding)
+        for snippet in snippets:
+            st.caption(f'Matched term: "{snippet.matched_term}" · {snippet.location} (approximate)')
+            st.text(snippet.snippet)
+        if not snippets:
+            st.info("No direct supporting snippet was captured for this finding. Read the full source excerpt before deciding.")
+        st.caption("A keyword match identifies a review topic; it does not establish a defect or compliance result.")
+    with decision, st.container(border=True, key="finding_decision"):
+        st.subheader("Your decision", anchor=False)
+        _render_reviewer_target(
+            brief_id=payload.brief_id,
+            target_type=finding.target_type,
+            target_index=finding.target_index,
+            generated_value=finding.value,
+            current=latest.get(selected),
+            history=history,
+            show_finding=False,
+        )
 
 
 def _ensure_demo_data() -> list[dict]:
