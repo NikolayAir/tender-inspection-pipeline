@@ -136,13 +136,29 @@ Reasoning: Reviewer decisions are human-authored review data, separate from dete
 
 Trade-off: Schema `1.1.0` records decision events in ascending event-ID order, including the generated target type and position, state, optional note, and UTC decision timestamp. Reviewer decisions remain limited to persisted bundled briefs and generated `risk_domain` and `missing_info` targets. Session-only pasted excerpts, reviewer identity, authentication, simultaneous multi-user editing, and decisions for generated review questions remain unsupported.
 
-## 2026-10-25 — Atomic processing and selective sample recovery
+## 2026-09-14 — Atomic document processing
 
-Decision: Save document changes, the processing run and its linked generated brief in one SQLite transaction using the same connection. Automatic initialisation checks each bundled `(source, title)` identity and processes only samples without a brief linked to a processing run for that same document. Restored legacy provenance counts as complete. Recheck completeness after reserving the writer so overlapping recovery attempts retain results completed by another session. Standalone lookups use read connections; checks within a write transaction use its existing connection.
+Decision: Save document changes, the processing run and its linked generated brief through one SQLite connection and transaction per sample. Extract the brief before opening the write transaction. Look up the document by its `(source, title)` identity and prepare the processing record within that transaction.
 
-Reasoning: Committing source changes before the new result could leave an older reviewed brief and its export paired with newer source data after a failure. Reprocessing every sample during recovery could also replace the latest reviewed result and hide its decisions. Failed attempts now preserve stored source data, review results and exports; completed samples retain their reviews during automatic recovery even if the bundled source or extractor version changes. When another sample cannot be recovered, the interface reads and displays available saved documents, reviews and exports, records the cause in the application log, and keeps the current document selected across a successful retry.
+Reasoning: Saving source changes before the new brief was ready could leave an older reviewed brief and its JSON export paired with data from an unsuccessful attempt. Errors during extraction, processing-record preparation or persistence must preserve the previous source data, processing history, briefs, reviewer decisions and serialised exports.
 
-Trade-off: Atomicity applies per sample, so earlier successful samples remain committed if a later sample fails. Schema initialisation and supported migrations remain separate from processing transactions. Explicit pipeline execution still appends a new processing run and brief, with earlier decisions retained on their original brief and no decisions copied to the new result. The database continues to store only the current source record for each logical document; the export schemas retain their existing contracts.
+Trade-off: Atomicity applies per sample, so earlier successful samples remain saved if a later sample fails. Schema initialisation and supported migrations remain separate from processing transactions. The database keeps only the current source record for each logical document; historical source revisions are not stored, and the export schemas retain their existing contracts.
+
+## 2026-09-15 — Selective sample recovery
+
+Decision: Check each bundled sample by its `(source, title)` identity and process only samples with missing or incomplete results. A result is complete when the stored document has a brief linked to a processing run for that same document. Results restored from supported older databases also count as complete.
+
+Reasoning: Counting all stored documents could overlook missing sample results when unrelated or unfinished records were present. Reprocessing every sample during recovery could create a new latest brief without the reviewer decisions saved on the earlier one. Selective recovery keeps completed results and their decisions, and repeated initialisation adds no records once all expected samples are complete.
+
+Trade-off: Changes to bundled source text or the extractor version do not automatically refresh a completed result. A refresh requires an explicit pipeline run. When the document identity is unchanged, that run reuses the stored document and appends a new processing run and brief. Earlier reviewer decisions stay attached to their original brief and are not copied to the new result.
+
+## 2026-10-25 — Concurrent sample recovery and continued access to saved reviews
+
+Decision: Recheck completeness after obtaining SQLite write access, using the same connection and transaction as the related writes. Skip samples completed by another session. Standalone lookups use read connections without reserving write access; checks within a write transaction use its existing connection. If recovery fails, keep readable saved documents, reviews and JSON downloads available. Show a recovery warning when saved documents can still be displayed, and log the underlying error. Retry recovery on refresh. Keep the selected document when a successful retry adds samples.
+
+Reasoning: Two sessions could both see a missing result before extraction. A slower session could then create a newer brief after the first result had received a reviewer decision, hiding that decision from the latest view. Reserving write access for a read-only lookup could also cause "database is locked" while ordinary reads still worked. An error while recovering one sample could make all saved reviews inaccessible through the interface even though their records remained in the database.
+
+Trade-off: Extraction remains outside the write transaction, so recovery may finish extracting a sample and then skip it because another session has already saved a completed result. Saved reviews remain available only while their records can be read. An empty database, unavailable storage and an unavailable selected review receive separate messages.
 
 ## 2026-10-26 — Consistent review reads during reprocessing
 
