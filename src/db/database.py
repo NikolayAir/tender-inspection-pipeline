@@ -574,23 +574,31 @@ def get_reviewer_decision_history(
     db_path: Path | str = DEFAULT_DB_PATH,
 ) -> list[StoredReviewerDecision]:
     """Return decision history in deterministic insertion order."""
-    with connect(db_path) as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                id,
-                brief_id,
-                target_type,
-                target_index,
-                state,
-                note,
-                decided_at
-            FROM reviewer_decisions
-            WHERE brief_id = ?
-            ORDER BY id
-            """,
-            (brief_id,),
-        ).fetchall()
+    with closing(connect(db_path)) as conn:
+        return _get_reviewer_decision_history(brief_id, conn)
+
+
+def _get_reviewer_decision_history(
+    brief_id: int,
+    conn: sqlite3.Connection,
+) -> list[StoredReviewerDecision]:
+    """Read decision events through the supplied connection."""
+    rows = conn.execute(
+        """
+        SELECT
+            id,
+            brief_id,
+            target_type,
+            target_index,
+            state,
+            note,
+            decided_at
+        FROM reviewer_decisions
+        WHERE brief_id = ?
+        ORDER BY id
+        """,
+        (brief_id,),
+    ).fetchall()
 
     return [_reviewer_decision_from_row(row) for row in rows]
 
@@ -668,42 +676,72 @@ def get_latest_brief_export(
     document_id: int,
     db_path: Path | str = DEFAULT_DB_PATH,
 ) -> VersionedBriefExport | None:
-    """Return the latest persisted brief with its linked export metadata."""
-    with connect(db_path) as conn:
-        row = conn.execute(
-            """
-            SELECT
-                d.id AS document_id,
-                d.source AS document_source,
-                d.source_url AS document_source_url,
-                d.title AS document_title,
-                pr.id AS processing_run_id,
-                pr.processed_at,
-                pr.extractor_name,
-                pr.extractor_version,
-                pr.brief_schema_version,
-                pr.source_content_fingerprint,
-                b.id AS brief_id,
-                b.summary,
-                b.technical_scopes,
-                b.risk_domains,
-                b.missing_info,
-                b.review_questions,
-                b.evidence,
-                b.confidence,
-                b.human_review_required
-            FROM briefs AS b
-            JOIN documents AS d
-              ON d.id = b.document_id
-            JOIN processing_runs AS pr
-              ON pr.id = b.processing_run_id
-             AND pr.document_id = b.document_id
-            WHERE b.document_id = ?
-            ORDER BY pr.id DESC, b.id DESC
-            LIMIT 1
-            """,
-            (document_id,),
+    """Read the latest brief, metadata and decisions from one SQLite snapshot."""
+    with closing(connect(db_path)) as conn, conn:
+        conn.execute("BEGIN")
+        return _get_latest_brief_export(document_id, conn)
+
+
+def get_document_review(
+    document_id: int,
+    db_path: Path | str = DEFAULT_DB_PATH,
+) -> tuple[dict, VersionedBriefExport | None] | None:
+    """Read a source document and its latest review from one SQLite snapshot.
+
+    Return None if the document is absent, or (document, None) if it has no
+    brief linked to its own processing run. The read transaction ends before
+    the page is rendered, without reserving write access.
+    """
+    with closing(connect(db_path)) as conn, conn:
+        conn.execute("BEGIN")
+        document = conn.execute(
+            "SELECT * FROM documents WHERE id = ?", (document_id,),
         ).fetchone()
+        if document is None:
+            return None
+
+        return dict(document), _get_latest_brief_export(document_id, conn)
+
+
+def _get_latest_brief_export(
+    document_id: int,
+    conn: sqlite3.Connection,
+) -> VersionedBriefExport | None:
+    """Read a result and its decisions within an existing read transaction."""
+    row = conn.execute(
+        """
+        SELECT
+            d.id AS document_id,
+            d.source AS document_source,
+            d.source_url AS document_source_url,
+            d.title AS document_title,
+            pr.id AS processing_run_id,
+            pr.processed_at,
+            pr.extractor_name,
+            pr.extractor_version,
+            pr.brief_schema_version,
+            pr.source_content_fingerprint,
+            b.id AS brief_id,
+            b.summary,
+            b.technical_scopes,
+            b.risk_domains,
+            b.missing_info,
+            b.review_questions,
+            b.evidence,
+            b.confidence,
+            b.human_review_required
+        FROM briefs AS b
+        JOIN documents AS d
+          ON d.id = b.document_id
+        JOIN processing_runs AS pr
+          ON pr.id = b.processing_run_id
+         AND pr.document_id = b.document_id
+        WHERE b.document_id = ?
+        ORDER BY pr.id DESC, b.id DESC
+        LIMIT 1
+        """,
+        (document_id,),
+    ).fetchone()
 
     if row is None:
         return None
@@ -717,9 +755,9 @@ def get_latest_brief_export(
             note=decision.note,
             decided_at=decision.decided_at,
         )
-        for decision in get_reviewer_decision_history(
+        for decision in _get_reviewer_decision_history(
             row["brief_id"],
-            db_path,
+            conn,
         )
     ]
 

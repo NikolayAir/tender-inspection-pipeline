@@ -102,7 +102,7 @@ def test_bundled_view_shows_export_download_before_brief_body(monkeypatch):
         "clean_text": "Test source text",
     }
     brief = object()
-    export_payload = SimpleNamespace(brief_id=41)
+    export_payload = SimpleNamespace(brief_id=41, brief=brief)
 
     monkeypatch.setattr(streamlit_app, "st", FakeStreamlit())
     monkeypatch.setattr(
@@ -112,13 +112,8 @@ def test_bundled_view_shows_export_download_before_brief_body(monkeypatch):
     )
     monkeypatch.setattr(
         streamlit_app.database,
-        "get_brief_for_document",
-        lambda document_id: brief,
-    )
-    monkeypatch.setattr(
-        streamlit_app.database,
-        "get_latest_brief_export",
-        lambda document_id: export_payload,
+        "get_document_review",
+        lambda document_id: (document, export_payload),
     )
     monkeypatch.setattr(
         streamlit_app,
@@ -144,8 +139,8 @@ def test_bundled_view_shows_export_download_before_brief_body(monkeypatch):
     monkeypatch.setattr(
         streamlit_app,
         "render_reviewer_decisions",
-        lambda brief_id, rendered_brief: events.append(
-            ("render_reviewer_decisions", brief_id, rendered_brief)
+        lambda payload: events.append(
+            ("render_reviewer_decisions", payload)
         ),
     )
 
@@ -170,7 +165,7 @@ def test_bundled_view_shows_export_download_before_brief_body(monkeypatch):
 
     assert download_index < brief_index
     assert brief_index < reviewer_index
-    assert events[reviewer_index][1:] == (41, brief)
+    assert events[reviewer_index][1] is export_payload
     assert button["label"] == "Download review brief (JSON)"
     assert button["file_name"] == "inspection-brief-document-7.json"
     assert button["mime"] == "application/json"

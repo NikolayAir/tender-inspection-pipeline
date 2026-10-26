@@ -36,6 +36,15 @@ def test_document_lookup_can_read_while_another_connection_reserves_the_writer(
                 document_id if existing else None
             )
             assert database.has_completed_result(sample.source, title, db_path) is existing
+            review = database.get_document_review(document_id if existing else -1, db_path)
+            if existing:
+                assert review is not None
+                document, payload = review
+                assert document["id"] == document_id
+                assert payload is not None
+                assert payload.document.id == document_id
+            else:
+                assert review is None
         finally:
             writer.rollback()
 

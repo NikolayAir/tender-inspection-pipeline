@@ -32,10 +32,9 @@ from src.ai.risk_extract import (  # noqa: E402
 )
 from src.collect.sample_loader import build_document_from_text  # noqa: E402
 from src.db import database  # noqa: E402
-from src.exports import serialize_brief_export  # noqa: E402
+from src.exports import VersionedBriefExport, serialize_brief_export  # noqa: E402
 from src.models import (  # noqa: E402
     EvidenceSnippet,
-    InspectionBrief,
     ReviewerDecision,
     ReviewState,
     ReviewTargetType,
@@ -323,10 +322,11 @@ def _render_reviewer_target(
 
 
 def render_reviewer_decisions(
-    brief_id: int,
-    brief: InspectionBrief,
+    payload: VersionedBriefExport,
 ) -> None:
-    """Render human-authored decisions for one persisted inspection brief."""
+    """Render findings and decisions from the same snapshot as the JSON export."""
+    brief_id = payload.brief_id
+    brief = payload.brief
     st.subheader("Reviewer decisions")
     st.caption(
         "Generated findings remain unchanged. Each saved reviewer decision "
@@ -334,8 +334,11 @@ def render_reviewer_decisions(
         "and notes."
     )
 
-    history = database.get_reviewer_decision_history(brief_id)
-    latest = database.get_latest_reviewer_decisions(brief_id)
+    history = [
+        StoredReviewerDecision(brief_id=brief_id, **decision.model_dump())
+        for decision in payload.reviewer_decisions
+    ]
+    latest = {(decision.target_type, decision.target_index): decision for decision in history}
     target_groups: tuple[
         tuple[ReviewTargetType, str, str, list[str]], ...
     ] = (
@@ -419,6 +422,18 @@ def render_bundled_view() -> None:
     choice = st.selectbox("Select a document", list(labels.keys()), key="bundled_document")
     document = labels[choice]
 
+    try:
+        snapshot = database.get_document_review(document["id"])
+    except (OSError, sqlite3.Error):
+        logger.exception("Could not read the saved review for document %s", document["id"])
+        st.error("The saved review for this document is currently unavailable. Refresh to retry.")
+        return
+
+    if snapshot is None:
+        st.info("The selected document is no longer available. Refresh to update the list.")
+        return
+    document, export_payload = snapshot
+
     is_synthetic = document["source"] == "synthetic_sample"
     if is_synthetic:
         st.info(
@@ -433,38 +448,24 @@ def render_bundled_view() -> None:
             f"(source: {document['source']}).{url_part}"
         )
 
-    try:
-        brief = database.get_brief_for_document(document["id"])
-        export_payload = (
-            database.get_latest_brief_export(document["id"])
-            if brief is not None else None
-        )
-    except (OSError, sqlite3.Error):
-        logger.exception("Could not read the saved review for document %s", document["id"])
-        st.error("The saved review for this document is currently unavailable. Refresh to retry.")
-        return
-
     st.subheader("Inspection brief")
-    if brief is None:
+    if export_payload is None:
         st.info("No brief stored for this document.")
         return
 
-    if export_payload is not None:
-        st.download_button(
-            "Download review brief (JSON)",
-            data=serialize_brief_export(export_payload),
-            file_name=brief_export_filename(document["id"]),
-            mime="application/json",
-            help=(
-                "Includes the review brief, source evidence, document metadata, "
-                "processing time and versions, and the source fingerprint."
-            ),
-        )
+    st.download_button(
+        "Download review brief (JSON)",
+        data=serialize_brief_export(export_payload),
+        file_name=brief_export_filename(document["id"]),
+        mime="application/json",
+        help=(
+            "Includes the review brief, source evidence, document metadata, "
+            "processing time and versions, and the source fingerprint."
+        ),
+    )
 
-    render_brief_body(brief)
-
-    if export_payload is not None:
-        render_reviewer_decisions(export_payload.brief_id, brief)
+    render_brief_body(export_payload.brief)
+    render_reviewer_decisions(export_payload)
 
     expander_label = (
         "Source document — synthetic sample"

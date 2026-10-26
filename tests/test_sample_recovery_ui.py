@@ -142,7 +142,7 @@ def test_saved_review_query_failure_is_reported_after_recovery_fallback(app_db, 
     def unavailable(*_args, **_kwargs):
         raise sqlite3.OperationalError("simulated unavailable review")
 
-    monkeypatch.setattr(database, "get_brief_for_document", unavailable)
+    monkeypatch.setattr(database, "get_document_review", unavailable)
 
     app = AppTest.from_file(str(APP_PATH), default_timeout=20).run()
 
