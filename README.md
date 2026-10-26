@@ -126,6 +126,8 @@ Automatic initialisation checks each bundled sample by its `(source, title)` ide
 
 If sample recovery fails, the interface continues to show saved documents, reviews and JSON downloads when those records remain readable. It shows a recovery warning and retries on refresh. A successful retry retains the selected document; unavailable storage or review records receive a separate error message.
 
+The interface reads each selected document, its latest brief, processing metadata and reviewer decisions in one SQLite read transaction. The source excerpt, displayed findings, reviewer controls and JSON download therefore use the same saved result, even if an explicit pipeline run saves a newer result while the page is loading. The read transaction ends before the review is rendered. A form submitted for an earlier brief is not applied to a newer brief.
+
 Explicit pipeline execution refreshes the selected samples, reuses documents with the same identity, and appends new processing runs and briefs. Earlier reviewer decisions stay attached to their original briefs; each new brief starts without decisions.
 
 Reviewer decisions apply only to generated technical focus areas (`risk_domain`) and information gaps (`missing_info`) in persisted bundled briefs; generated review questions are not decision targets. An item with no saved decision is displayed as `Unreviewed` and does not create a database record.

@@ -107,6 +107,7 @@ def ensure_bundled_samples(
 
         brief = extract_brief(document)
         with database.transaction(db_path) as conn:
+            # Another session may have saved this sample while extraction ran.
             if database.has_completed_result(document.source, document.title, connection=conn):
                 continue
             recovered.append(_store_document_result(document, brief, conn))
