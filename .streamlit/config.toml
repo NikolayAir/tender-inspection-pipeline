@@ -1,10 +1,19 @@
 [theme]
-base = "dark"
-primaryColor = "#4F8EF7"
-backgroundColor = "#0F172A"
-secondaryBackgroundColor = "#22304A"
-textColor = "#E5E7EB"
-borderColor = "#334155"
-dataframeBorderColor = "#334155"
+base = "light"
+primaryColor = "#087F78"
+backgroundColor = "#F8FAFB"
+secondaryBackgroundColor = "#EFF3F5"
+textColor = "#20323D"
+borderColor = "#DDE5E8"
+dataframeBorderColor = "#DDE5E8"
+dataframeHeaderBackgroundColor = "#F2F5F6"
 showWidgetBorder = true
+showSidebarBorder = true
 font = "sans serif"
+baseRadius = "0.65rem"
+buttonRadius = "0.5rem"
+headingFontWeights = [650, 650, 600, 600, 600, 600] # Weights for h1 through h6, in order.
+
+[theme.sidebar]
+backgroundColor = "#F4F7F8"
+secondaryBackgroundColor = "#FFFFFF"

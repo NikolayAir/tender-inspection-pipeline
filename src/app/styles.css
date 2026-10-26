@@ -17,7 +17,7 @@
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 0.7rem;
-    background: #4f8ef7;
+    background: #087f78;
     color: #fff;
     font-weight: 750;
     letter-spacing: -0.08em; /* Keep the initials joined as a compact monogram. */
@@ -30,7 +30,7 @@
     text-transform: uppercase;
     opacity: 0.65;
 }
-.eyebrow { margin-bottom: 0.45rem; color: inherit; opacity: 1; }
+.eyebrow { margin-bottom: 0.45rem; color: #087f78; opacity: 1; }
 
 .st-key-workspace_nav [role="radiogroup"] { gap: 0.25rem; }
 .st-key-workspace_nav [role="radiogroup"] > label {
@@ -40,7 +40,8 @@
     margin: 0;
 }
 .st-key-workspace_nav [role="radiogroup"] > label:has(input:checked) {
-    color: inherit;
+    background: color-mix(in srgb, #087f78 10%, transparent);
+    color: #087f78;
 }
 
 .st-key-brief_header h2 { font-size: 1.35rem; line-height: 1.4; }
@@ -64,7 +65,8 @@
 }
 .scope-tag {
     padding: 0.35rem 0.65rem;
-    border: 1px solid rgba(127, 142, 146, 0.25);
+    background: color-mix(in srgb, #087f78 8%, transparent);
+    border: 1px solid color-mix(in srgb, #087f78 20%, transparent);
     border-radius: 0.4rem;
     font-size: 0.83rem;
     line-height: 1.45; /* Leave room between lines when a tag label wraps. */
@@ -87,4 +89,21 @@
     .st-key-brief_tabs [role="tab"] { font-size: 0.85rem; }
     .st-key-brief_metrics [data-testid="stMetric"] { padding: 0.7rem; }
     .st-key-brief_metrics [data-testid="stMetricValue"] { font-size: 1.4rem; }
+}
+
+/* Soft elevation separates work surfaces without strong blocks of colour. */
+.st-key-brief_metrics [data-testid="stMetric"],
+.st-key-overview_summary, .st-key-overview_next,
+.st-key-finding_evidence, .st-key-finding_decision, .st-key-excerpt_input {
+    box-shadow: 0 3px 16px rgba(26, 58, 66, 0.035);
+}
+.stApp button[kind="primary"] {
+    box-shadow: 0 3px 8px rgba(8, 127, 120, 0.12);
+}
+.stApp button {
+    transition: box-shadow 150ms ease, border-color 150ms ease; /* Soften hover and focus changes over 0.15 seconds. */
+}
+.stApp button:hover { box-shadow: 0 2px 8px rgba(26, 58, 66, 0.07); }
+@media (prefers-reduced-motion: reduce) { /* Respect the user's reduced-motion setting. */
+    .stApp button { transition: none; }
 }
