@@ -1,7 +1,7 @@
 """Single CLI entry point for the vertical slice.
 
 Wires the layers together:
-    load sample -> clean -> store document -> extract brief -> store brief.
+    load sample -> clean -> extract brief -> atomically store source and result.
 
 Run from the repository root:
     python -m src.pipeline                  # ingests all bundled samples
@@ -11,11 +11,13 @@ Run from the repository root:
 from __future__ import annotations
 
 import argparse
+import sqlite3
 from pathlib import Path
 
 from src.ai.risk_extract import extract_brief
 from src.collect.sample_loader import DEFAULT_SAMPLE_PATH, load_sample
 from src.db import database
+from src.models import InspectionBrief, TenderDocument
 from src.provenance import build_processing_run
 
 PUBLIC_SAMPLE_PATH = Path("data") / "samples" / "public_lu_pmp_ctie_001.txt"
@@ -23,12 +25,33 @@ PUBLIC_SAMPLE_BELVAUX_PATH = Path("data") / "samples" / "public_lu_pmp_snhbm_bel
 
 # Samples ingested by the CLI by default: the synthetic sample (offline tests)
 # plus the manually curated public samples. Each is stored as its own document;
-# idempotency is handled per (source, title) in run_pipeline.
+# document reuse is handled per (source, title) in run_pipeline.
 BUNDLED_SAMPLES: list[Path] = [
     DEFAULT_SAMPLE_PATH,
     PUBLIC_SAMPLE_PATH,
     PUBLIC_SAMPLE_BELVAUX_PATH,
 ]
+
+
+def _store_document_result(
+    document: TenderDocument,
+    brief: InspectionBrief,
+    connection: sqlite3.Connection,
+) -> tuple[int, int]:
+    """Save a prepared source and result within the caller's write transaction."""
+    document_id = database.find_document_id(
+        document.source, document.title, connection=connection,
+    )
+    if document_id is None:
+        document_id = database.insert_document(document, connection=connection)
+    else:
+        database.update_document(document_id, document, connection=connection)
+
+    processing_run = build_processing_run(document_id, document)
+    _, brief_id = database.insert_processing_result(
+        processing_run, brief, connection=connection,
+    )
+    return document_id, brief_id
 
 
 def run_pipeline(
@@ -39,40 +62,56 @@ def run_pipeline(
 
     Safe to run repeatedly: the pipeline reuses an existing document found by
     (source, title), so ordinary re-runs update that logical document instead of
-    inserting duplicates. Each
-    execution appends a traceable processing run and preserves its linked brief.
+    inserting duplicates. Each successful execution appends a traceable processing
+    run and preserves its linked brief. A failed attempt leaves stored data intact.
     """
     database.init_db(db_path)
 
     document = load_sample(sample_path)
-    existing_id = database.find_document_id(document.source, document.title, db_path)
-    if existing_id is None:
-        document_id = database.insert_document(document, db_path)
-    else:
-        document_id = existing_id
-        database.update_document(document_id, document, db_path)
-
     brief = extract_brief(document)
-    processing_run = build_processing_run(document_id, document)
-    _, brief_id = database.insert_processing_result(
-        processing_run,
-        brief,
-        db_path,
-    )
 
-    return document_id, brief_id
+    with database.transaction(db_path) as conn:
+        return _store_document_result(document, brief, conn)
 
 
 def ingest_bundled_samples(
     db_path: Path | str = database.DEFAULT_DB_PATH,
 ) -> list[tuple[int, int]]:
-    """Run the pipeline over every bundled sample once.
+    """Explicitly process every bundled sample, appending new results.
 
-    Returns a list of (document_id, brief_id) per sample. Reused by the Streamlit
-    app to initialise the demo database when it is missing or empty. Fully offline;
-    only the committed bundled sample files are ingested.
+    Returns a list of (document_id, brief_id) per sample. Fully offline; only the
+    committed bundled sample files are ingested. Automatic recovery instead uses
+    ``ensure_bundled_samples`` to preserve completed results.
     """
     return [run_pipeline(sample_path, db_path) for sample_path in BUNDLED_SAMPLES]
+
+
+def ensure_bundled_samples(
+    db_path: Path | str = database.DEFAULT_DB_PATH,
+) -> list[tuple[int, int]]:
+    """Recover only missing or incomplete bundled samples and return new results.
+
+    A sample is complete when its (source, title) identifies a document with a
+    brief linked to a processing run for that same document. Existing completed
+    results and reviewer decisions are retained, including restored legacy runs.
+    Recheck completeness within the write transaction so overlapping recovery
+    attempts cannot replace a result completed by another session. Refreshing a
+    completed sample requires an explicit pipeline execution.
+    """
+    database.init_db(db_path)
+    recovered = []
+    for sample_path in BUNDLED_SAMPLES:
+        document = load_sample(sample_path)
+        if database.has_completed_result(document.source, document.title, db_path):
+            continue
+
+        brief = extract_brief(document)
+        with database.transaction(db_path) as conn:
+            # Another session may have saved this sample while extraction ran.
+            if database.has_completed_result(document.source, document.title, connection=conn):
+                continue
+            recovered.append(_store_document_result(document, brief, conn))
+    return recovered
 
 
 def main() -> None:
