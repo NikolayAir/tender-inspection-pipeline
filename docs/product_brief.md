@@ -29,7 +29,9 @@ For persisted bundled briefs, reviewers can record `accepted`, `rejected`, or `n
 
 Persisted briefs can be downloaded as deterministic, versioned JSON containing document metadata, the linked processing run, the generated brief and source evidence, and the complete ordered reviewer-decision history.
 
-Failed processing preserves the previously saved source, review result, reviewer decisions and export. Automatic sample recovery processes only samples with missing or incomplete results. It keeps completed processing results and saved reviewer decisions, even when two sessions run recovery at the same time. If recovery fails, readable saved reviews and downloads remain available with a warning. An explicit pipeline refresh creates a new brief; earlier decisions remain attached to the brief they were made for.
+Saved decisions remain tied to the brief the reviewer inspected. Refreshing a result creates a new brief without transferring earlier decisions. Failed processing preserves the previous saved review.
+
+See the [user guide](user-guide.md) for the review workflow and [architecture and data contracts](architecture.md) for persistence, recovery, and export guarantees. Sample sources and evaluation boundaries are documented in [data and validation](data-and-validation.md).
 
 ## Boundaries
 
