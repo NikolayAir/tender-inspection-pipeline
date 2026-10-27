@@ -14,12 +14,12 @@ Tender-to-Inspection Brief provides two review paths:
 1. Open **Review workspace** and select a document under **Bundled samples** in the sidebar. The document badge distinguishes public excerpts from synthetic test data.
 2. Scan **Overview** for technical scopes, information gaps, and suggested questions. The header shows the number of findings, source snippets, and saved decisions.
 3. Select **Start reviewing**, or open **Review findings**. Choose one finding, check its supporting source text, and use the decision form to record your review. Use **Previous**, **Next**, or the finding selector to move through the brief; **Review status** filters the queue.
-4. Use **Evidence & source** to read complete matching snippets beside the original excerpt and its source attribution. **Run details** contains processing versions, the source fingerprint, the original generated summary, and the qualitative validation snapshot.
+4. Use **Evidence & source** to read complete matching snippets beside the original excerpt and its source attribution. **Run details** contains processing versions, the source fingerprint, the original generated summary, and **Checks on bundled samples**.
 5. Use **Download review brief (JSON)** to save the result with its processing provenance and decision history.
 
 When the available workspace is narrow, including a tablet or small desktop window with the sidebar open, the app uses a compact metric grid and stacks related panels. Wider workspaces show the source and decision panels side by side. The sidebar starts open on a wide screen and collapsed on a narrow screen. When hidden, use **Menu & samples** at the top left to change workflows or samples; the control has a visible label as well as an arrow.
 
-Suggested questions are prompts for the reviewer, not conclusions about the tender. A keyword match identifies a possible review topic; the reviewer determines what needs follow-up. The current extractor always returns `confidence="low"` and `human_review_required=true`.
+Suggested questions are prompts for the reviewer, not conclusions about the tender. A keyword match identifies a possible review topic; the reviewer determines what needs follow-up. **Low** is a fixed confidence label and not an accuracy score. Every generated brief requires human review.
 
 ### Record decisions
 
@@ -47,7 +47,9 @@ The bundled validation results do not establish extraction quality for pasted te
 
 ## In-app help and navigation
 
-**How it works** opens a guide over the current workspace. **Quick start** walks through a bundled review, **Pasted excerpts** explains the session preview, **Behind the brief** describes the rules and limits, and **Command line** shows local pipeline commands. Close the dialog or press Escape to return.
+**How it works** opens a guide over the current workspace. **Quick start** walks through a bundled review, **Pasted excerpts** explains the temporary preview, **How findings are generated** describes the keyword rules and their limits, and **Command line** shows local processing commands. Close the dialog or press Escape to return.
+
+The sidebar labels the method **Keyword-based extraction**. The guide explains that a hosted application processes pasted text on its server, while the preview is not written to the app's database. The rules do not use a large language model or call an external AI service to generate findings.
 
 **Start reviewing** brings the review controls into view. A successful pasted analysis reveals the preview when it is outside the useful viewport, including below the input on a narrow screen. Saving a decision, submitting invalid input, and ordinary reruns retain the current position. The reveal respects reduced-motion preferences.
 

@@ -155,5 +155,5 @@ def test_no_match_notice_is_not_counted_as_an_information_gap(excerpt_app):
     assert not app.exception
     assert [metric.value for metric in app.metric] == ["0", "0", "0"]
     assert any("manual review needed" in item.value for item in app.info)
-    assert any("No explicit gaps matched" in item.value for item in app.markdown)
+    assert any("No explicit phrases about missing information matched" in item.value for item in app.markdown)
     assert database.get_documents(db_path) == documents

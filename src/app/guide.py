@@ -6,59 +6,70 @@ import streamlit as st
 @st.dialog("How it works", width="large")
 def show_workflow_guide() -> None:
     """Explain the complete review path without leaving the current workspace."""
-    st.write("Turn a public tender excerpt into a brief you can verify, review, and trace back to its source.")
+    with st.container(key="workflow_guide_intro"):
+        st.write("Check suggested review topics against the source text, then record your decisions on a bundled sample.")
     quick, pasted, method, cli = st.tabs(
-        ["Quick start", "Pasted excerpts", "Behind the brief", "Command line"],
+        ["Quick start", "Pasted excerpts", "How findings are generated", "Command line"],
     )
     with quick:
-        st.subheader("Explore the project in two minutes", anchor=False)
+        st.subheader("Review a bundled sample", anchor=False)
         st.markdown(
-            "1. **Choose a bundled sample** in the sidebar. Start with a public "
-            "Luxembourg excerpt, or choose the synthetic sample to explore information gaps.\n"
-            "2. **Scan Overview.** See the technical scopes, flagged gaps, and suggested questions.\n"
-            "3. **Open Review findings.** Compare the selected finding with its supporting source. "
+            "1. **Choose a document** under Bundled samples in the sidebar. These examples "
+            "are provided with the app: two public Luxembourg excerpts and one "
+            "synthetic sample, which is a made-up example for testing.\n"
+            "2. **Scan Overview.** See the construction topics found by the keyword rules, "
+            "phrases suggesting missing information, and questions to check.\n"
+            "3. **Open Review findings.** Compare one suggested finding with the quoted source text. "
             "Choose Accepted, Rejected, or Needs follow-up in the decision panel, "
             "add an optional note, and select Save decision.\n"
-            "4. **Download the JSON brief.** It includes the generated brief, source evidence, "
-            "processing record, and all saved decision events."
+            "4. **Download review brief (JSON).** This structured data file contains the "
+            "generated brief, supporting text, processing details and saved decision history. "
+            "Unsaved decisions and notes are not included."
         )
-        st.info("Each save adds to the history. It never rewrites the generated finding or your earlier decisions.", icon=":material/history:")
-        st.caption("Evidence & source shows the excerpt beside the evidence index. Run details holds versions, the source fingerprint, and qualitative validation.")
+        st.info("Each saved decision adds a history entry and keeps the generated finding unchanged. Earlier decisions and notes remain available under Decision history.", icon=":material/history:")
+        st.caption("Source snippets are passages quoted from the input. Evidence & source shows them beside the original excerpt. Run details explains how the saved brief was produced and shows the checks on the bundled samples.")
     with pasted:
         st.subheader("Try your own public excerpt", anchor=False)
         st.markdown(
             "1. Choose **Analyse a public excerpt** in the sidebar.\n"
             "2. Paste public, non-confidential text, up to **50,000 characters**. "
-            "A title and source URL are optional; the URL is a reference and is not fetched.\n"
+            "A title and source URL are optional. The app shows the URL as a reference; "
+            "it does not open or download the page.\n"
             "3. Select **Generate review brief**. The preview contains separate views "
             "for findings, evidence, questions, and source text.\n"
-            "4. Edit the input and generate again to update it. "
-            "The draft and last generated preview remain available when you open "
-            "help or switch workflows in the same session."
+            "4. **Generate again after editing** to update the preview. Until then, "
+            "the previous preview stays visible. Opening help or switching between "
+            "Review workspace and Analyse a public excerpt keeps your draft and preview."
         )
-        st.info("Pasted previews stay in the current session. They have no saved reviewer decisions or JSON download.", icon=":material/visibility:")
+        st.info("The draft and preview are temporary. Reloading this browser tab clears them. Pasted previews have no saved reviewer decisions or JSON download.", icon=":material/visibility:")
+        st.caption("In the hosted app, pasted text is sent to the application server for processing. This preview is not written to the app's database. Use public, non-confidential text only.")
     with method:
-        st.subheader("Transparent rules, traceable results", anchor=False)
+        st.subheader("How the keyword rules work", anchor=False)
         st.markdown(
-            "**01 · Prepare the text**\n\nNormalise whitespace and line endings.\n\n"
-            "**02 · Match declared rules**\n\nLook for configured domain keywords and "
-            "explicit missing-information phrases. Capture the matching source text.\n\n"
-            "**03 · Build the brief**\n\nGroup technical scopes, review focus areas, "
-            "gaps, questions, and evidence. No external model or API is called.\n\n"
-            "**04 · Let a human decide**\n\nSave decisions against a specific brief, "
-            "keeping the generated output and decision history separately."
+            "**01 · Clean up the text**\n\nRemove repeated spaces and standardise line breaks.\n\n"
+            "**02 · Look for keywords and phrases**\n\nCheck predefined keywords, such as "
+            "those for fire safety or ventilation, and phrases about missing information. "
+            "Matches ignore capital letters. A keyword can also match part of a longer word.\n\n"
+            "**03 · Suggest checks and show the matching text**\n\nGroup possible review "
+            "topics, information gaps and follow-up questions. Quote the passages behind "
+            "the matches. Approximate line numbers refer to the cleaned excerpt shown in the app.\n\n"
+            "**04 · Record the reviewer's decisions**\n\nFor bundled samples, a reviewer can "
+            "save a decision on each finding. The app keeps the generated brief unchanged "
+            "and adds each decision to its history."
         )
-        st.caption("Bundled results are stored in SQLite. Completed samples are reused on later visits; explicit reprocessing creates a new brief with a separate review history.")
-        st.warning("Keyword matches do not interpret context. Confidence is fixed at Low, locations are approximate, and the three-sample validation set makes no statistical accuracy claim. The output supports human technical review, not legal, regulatory, compliance, safety, or engineering decisions.")
+        st.write("The app uses fixed keyword rules. It does not use a large language model (LLM) or call external AI services to generate findings.")
+        st.caption("Bundled results are saved in the app's database and reused on later visits. Reprocessing creates a new brief; earlier decisions stay with the earlier brief.")
+        st.warning("A keyword match suggests what to check; it does not confirm a defect. A phrase about missing information applies to the excerpt and may not describe the full tender. The app does not make engineering, safety, legal, regulatory or compliance decisions.")
+        st.caption("Confidence is always labelled Low. It is a fixed label, not an accuracy score. Checks on the three bundled samples do not show how accurately the rules will work on other documents.")
     with cli:
-        st.subheader("Run the same pipeline locally", anchor=False)
-        st.caption("From the repository root, after installing the dependencies:")
+        st.subheader("Run the bundled samples from a terminal", anchor=False)
+        st.caption("Run these commands from the project folder after installing its Python dependencies:")
         st.code("python -m src.pipeline --db data/processed/tender-review-demo.db", language="bash")
-        st.write("This processes the bundled samples into a separate local database.")
+        st.write("This saves results in a separate database file, leaving the app's usual database unchanged.")
         st.code(
             "python -m src.pipeline\n"
             "python -m streamlit run src/app/streamlit_app.py",
             language="bash",
         )
-        st.caption("The first command explicitly reprocesses samples in the app's default database. It appends new briefs; earlier decisions remain attached to their earlier briefs. The second command starts the interface.")
+        st.caption("Processing again adds new briefs to the app's database. Earlier decisions stay with their original briefs. Streamlit starts the web interface.")
         st.link_button("Read the development guide", "https://github.com/NikolayAir/tender-inspection-pipeline/blob/main/docs/development.md", icon=":material/open_in_new:")

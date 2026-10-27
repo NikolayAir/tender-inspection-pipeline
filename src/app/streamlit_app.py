@@ -150,7 +150,7 @@ def _render_information_gaps(brief: InspectionBrief) -> None:
     st.markdown("**Information gaps**")
     _bullets(
         information_gaps(brief),
-        "No explicit gaps matched. This does not establish completeness.",
+        "No explicit phrases about missing information matched. Check the full tender documentation.",
     )
     if NO_MATCH_NOTICE in brief.missing_info:
         st.info(NO_MATCH_NOTICE)
@@ -177,7 +177,7 @@ def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> Non
         if brief.technical_scopes:
             _render_scope_tags(brief.technical_scopes)
         else:
-            st.caption("No technical scopes matched. Read the source manually.")
+            st.caption("No technical topics matched the keyword rules. Read the source manually.")
         if brief.risk_domains != brief.technical_scopes:
             st.markdown("**Review focus areas**")
             _bullets(brief.risk_domains, "No review focus areas detected.")
@@ -188,8 +188,8 @@ def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> Non
                 on_click=_select_brief_tab, args=("Review findings",),
             )
     with questions:
-        st.subheader("Questions to take into review", anchor=False)
-        st.caption("Suggested prompts to check against the full tender documentation.")
+        st.subheader("Questions to check", anchor=False)
+        st.caption("Suggested follow-up questions for checking the full tender documentation.")
         if brief.review_questions:
             for index, question in enumerate(brief.review_questions, 1):
                 st.markdown(f"**{index:02d}** · {question}")
@@ -280,7 +280,10 @@ def _render_reviewer_target(
             key=reviewer_widget_key(
                 brief_id, target_type, target_index, "note"
             ),
-            help="Saved notes are human-authored and limited to 2,000 characters.",
+            help=(
+                "Explain your decision or what needs follow-up. The note is saved "
+                "when you select Save decision. Up to 2,000 characters."
+            ),
         )
         submitted = st.form_submit_button("Save decision", type="primary", width="stretch")
 
@@ -518,15 +521,15 @@ def render_bundled_view() -> None:
                 icon=":material/download:",
                 width="stretch",
                 help=(
-                    "Includes generated findings, source evidence, document metadata, "
-                    "processing provenance, and the saved decision history. "
+                    "Includes the generated brief, supporting source passages, "
+                    "document and processing details, and saved decision history. "
                     "Unsaved form changes are excluded."
                 ),
             )
 
     render_brief_metrics(export_payload.brief, export_payload)
     st.caption(
-        "Human review required · Keyword-based findings · Baseline confidence: Low. "
+        "Human review required · Keyword-based findings · Confidence label: Low (fixed). "
         "Verify findings against the source before using them."
     )
     overview, decisions, evidence, details = st.tabs(
@@ -583,6 +586,7 @@ def render_run_details(payload: VersionedBriefExport) -> None:
         run, validation = st.columns([1, 1.2], gap="large")
     with run:
         st.subheader("Processing record", anchor=False)
+        st.caption("Details of the saved brief and the rules used to generate it.")
         record = [
             f"**Brief:** #{payload.brief_id} · **Run:** #{payload.processing_run.id}",
             f"**Processed:** {payload.processing_run.processed_at:%Y-%m-%d %H:%M UTC}",
@@ -594,11 +598,15 @@ def render_run_details(payload: VersionedBriefExport) -> None:
         st.markdown("  \n".join(record))
         st.markdown("**Source fingerprint · SHA-256**")
         st.code(payload.processing_run.source_content_fingerprint, language=None, wrap_lines=True)
+        st.caption(
+            "This code identifies the cleaned source text used in this run. "
+            "It does not preserve earlier copies of that text."
+        )
         st.caption("Decisions belong to this brief. Reprocessing creates a new brief with its own review history.")
         st.markdown("**Original generated summary**")
         st.write(payload.brief.summary)
     with validation:
-        st.subheader("Validation snapshot", anchor=False)
+        st.subheader("Checks on bundled samples", anchor=False)
         render_validation_snapshot()
 
 
@@ -636,9 +644,9 @@ def render_validation_snapshot() -> None:
                 },
             )
         st.caption(
-            'Here, "Match" means that the extracted review domains agreed with '
-            "the manually defined expectations for a sample. This dataset is "
-            "too small to support statistical accuracy claims. Detailed notes "
+            'Here, "Match" means that the detected review topics agreed with '
+            "the topics expected by a person reviewing that sample. These few "
+            "examples do not show how accurately the rules will work on other text. Detailed notes "
             "are stored in `data/labels/manual_validation_v1.csv`."
         )
 
@@ -674,19 +682,22 @@ def render_adhoc_view() -> None:
         )
         title = st.text_input(
             "Document title (optional)", key="adhoc_title",
-            help="Used unless the pasted text contains a non-empty TITLE: line.",
+            help=(
+                "The app first looks for a title on a line such as TITLE: Roof works "
+                "in the pasted text. If no such line contains a title, it uses this field."
+            ),
             on_change=_remember_adhoc_field, args=("title",),
         )
         source_url = st.text_input(
             "Source URL (optional)", key="adhoc_url",
-            help="Reference metadata only. The application does not fetch this URL.",
+            help="Shown as a source reference. The app does not open or download the page.",
             on_change=_remember_adhoc_field, args=("url",),
         )
         inputs = {"title": title, "url": source_url, "text": text}
         submitted = st.button(
             "Generate review brief", type="primary", icon=":material/play_arrow:", width="stretch",
         )
-        st.caption("Draft and preview stay in this session. Decisions and JSON downloads are available for bundled samples.")
+        st.caption("Draft and preview stay in this browser session. Decisions and JSON downloads are available for bundled samples.")
         if submitted:
             st.session_state["adhoc_draft"] = inputs
             error = adhoc_input_error(text)
@@ -710,7 +721,7 @@ def render_adhoc_view() -> None:
             with st.container(border=True, key="preview_empty"):
                 st.subheader("Your brief will appear here", anchor=False)
                 st.write("Paste a public excerpt and select Generate review brief.")
-                st.caption("Explore detected scopes, information gaps, review questions, and the source text behind each match.")
+                st.caption("The preview includes matching source text and suggested questions to check.")
             return
 
         document, brief = preview
@@ -736,7 +747,7 @@ def render_adhoc_view() -> None:
             if brief.technical_scopes:
                 _render_scope_tags(brief.technical_scopes)
             else:
-                st.caption("No technical scopes matched. Read the excerpt manually.")
+                st.caption("No technical topics matched the keyword rules. Read the excerpt manually.")
             if brief.risk_domains != brief.technical_scopes:
                 _bullets(brief.risk_domains, "No review focus areas detected.")
             _render_information_gaps(brief)
@@ -749,7 +760,7 @@ def render_adhoc_view() -> None:
                 st.write(f"**Source URL:** {document.source_url}")
             with st.container(border=True, height=360, key="preview_source"):
                 st.text(document.clean_text)
-        st.caption("Keyword-based preview · Confidence: Low · Human review required. Bundled validation does not establish quality for pasted text.")
+        st.caption("Keyword-based preview · Confidence label: Low (fixed) · Human review required. Sample checks do not show how accurate this preview is.")
 
 
 def render() -> None:
@@ -782,12 +793,12 @@ def render() -> None:
     if page == "Review workspace":
         render_bundled_view()
     else:
-        st.caption("Turn public tender text into a source-traced review preview.")
+        st.caption("Paste public tender text to generate findings you can check against the source.")
         render_adhoc_view()
 
     with st.sidebar, st.container(key="sidebar_footer"):
         st.divider()
-        st.caption("Transparent keyword rules · No external AI service")
+        st.caption("Keyword-based extraction")
         st.caption("Supports human technical review. Findings require verification.")
 
     render_pending_scroll()
