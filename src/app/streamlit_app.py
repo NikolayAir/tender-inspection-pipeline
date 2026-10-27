@@ -56,6 +56,8 @@ from src.validation.manual_validation import (  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
+APP_TITLE = "Tender-to-Inspection Brief"
+
 # Upper bound on pasted text, to keep the in-session preview responsive.
 MAX_ADHOC_CHARS = 50_000
 REVIEW_STATE_OPTIONS: tuple[ReviewState, ...] = (
@@ -753,7 +755,7 @@ def render_adhoc_view() -> None:
 def render() -> None:
     """Render one workflow at a time in a shared application shell."""
     st.set_page_config(
-        page_title="Tender-to-Inspection Brief",
+        page_title=APP_TITLE,
         page_icon=":material/fact_check:",
         layout="wide",
         initial_sidebar_state="auto",
@@ -763,7 +765,7 @@ def render() -> None:
     with st.sidebar:
         st.html(
             '<div class="app-brand"><div class="brand-mark">ti</div>'
-            '<div><div class="brand-name">Tender inspection</div>'
+            f'<div><div class="brand-name">{APP_TITLE}</div>'
             '<div class="brand-caption">Source to decision</div></div></div>'
         )
         page = st.radio(

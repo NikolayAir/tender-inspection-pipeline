@@ -50,6 +50,17 @@
     color: var(--tender-muted);
 }
 
+/* Leave room for the full title, the brand mark and the sidebar padding. */
+[data-testid="stSidebar"][aria-expanded="true"] {
+    min-width: 18rem;
+}
+[data-testid="stSidebar"][aria-expanded="true"] .brand-name {
+    white-space: nowrap; /* Keep the full application name on one line. */
+}
+[data-testid="stSidebar"][aria-expanded="true"] .brand-mark {
+    flex-shrink: 0; /* Preserve the logo width when neighbouring text needs more room. */
+}
+
 .st-key-workspace_nav [role="radiogroup"] { gap: 0.25rem; }
 .st-key-workspace_nav [role="radiogroup"] > label {
     padding: 0.55rem 0.75rem;
