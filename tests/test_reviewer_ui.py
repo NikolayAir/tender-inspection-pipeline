@@ -258,11 +258,34 @@ def test_reviewer_target_reports_save_failure(monkeypatch, error):
         history=[],
     )
 
-    assert fake_st.errors == [
-        "The reviewer decision could not be saved. Refresh the page and try again."
-    ]
+    assert len(fake_st.errors) == 1
+    if isinstance(error, sqlite3.Error):
+        assert "try saving again" in fake_st.errors[0]
+        assert "Refresh" not in fake_st.errors[0]
+    else:
+        assert "Copy your note before refreshing" in fake_st.errors[0]
     assert fake_st.session_state == {}
     assert fake_st.reruns == 0
+
+
+@pytest.mark.parametrize(
+    "initial,identities,offset,expected",
+    [
+        (("risk_domain", 0), [("risk_domain", 0), ("risk_domain", 1)], -1, ("risk_domain", 0)),
+        (("risk_domain", 1), [("risk_domain", 0), ("risk_domain", 1)], 1, ("risk_domain", 1)),
+        (("risk_domain", 0), [("missing_info", 0)], 1, ("risk_domain", 0)),
+        (None, [("risk_domain", 0)], 1, None),
+    ],
+)
+def test_stale_navigation_events_do_not_wrap_or_crash(monkeypatch, initial, identities, offset, expected):
+    fake_st = _ReviewerTargetStreamlit(None, "", submitted=False)
+    if initial is not None:
+        fake_st.session_state["queue"] = initial
+    monkeypatch.setattr(streamlit_app, "st", fake_st)
+
+    streamlit_app._move_finding("queue", identities, offset)
+
+    assert fake_st.session_state.get("queue") == expected
 
 
 def test_reviewer_target_saves_valid_append_only_event(monkeypatch):

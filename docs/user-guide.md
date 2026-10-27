@@ -25,7 +25,7 @@ Suggested questions are prompts for the reviewer, not conclusions about the tend
 
 For each generated focus area or information gap, select **Accepted**, **Rejected**, or **Needs follow-up**, optionally add a note, and save. Notes are limited to 2,000 characters. Items without a saved decision appear as **Unreviewed**; displaying that state does not create a database record.
 
-Save before switching findings. When a save changes an item's status, a filtered queue may advance to another matching finding. The confirmation appears once, and the saved-decision count updates. An empty filter means no findings match that status; change the filter to continue. **Decisions saved** counts findings with a recorded decision, including those still marked **Needs follow-up**.
+Save before leaving a finding, including when changing documents or workflows. If storage temporarily prevents a save, the decision and note remain in the form so the save can be retried. When a save changes an item's status, a filtered queue may advance to another matching finding. The confirmation appears once, and the saved-decision count updates. An empty filter means no findings match that status; change the filter to continue. **Decisions saved** counts findings with a recorded decision, including those still marked **Needs follow-up**.
 
 Each save appends an event. The latest event determines the displayed state, and earlier states and notes remain in the history. Saving a decision does not alter the generated brief. Generated questions are not separate decision targets.
 
@@ -63,6 +63,6 @@ If automatic recovery fails, readable saved reviews and JSON downloads remain av
 
 The download contains the selected persisted brief, its linked processing run, source metadata and evidence, and the complete ordered reviewer-decision history. It uses export schema `1.1.0`.
 
-The source excerpt, displayed findings, reviewer controls, and download use the same saved result for that page load. If reprocessing finishes after the page reads its data, the next page rerun shows the newer result.
+The source excerpt, displayed findings, reviewer controls, and download use the same saved result for that page load. Downloading does not rerun the page or submit the decision form. If reprocessing finishes after the page reads its data, the next page rerun shows the newer result.
 
 The export represents one brief and its linked records. It does not contain the full source text or a complete document-revision archive. See the [export contract](architecture.md#versioned-json-export) for compatibility and serialisation details.

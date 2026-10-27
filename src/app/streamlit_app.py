@@ -288,10 +288,17 @@ def _render_reviewer_target(
                     decided_at=datetime.now(timezone.utc),
                 )
                 database.insert_reviewer_decision(decision)
-            except (ValueError, sqlite3.Error):
+            except ValueError:
+                logger.exception("Invalid reviewer decision for brief %s", brief_id)
                 st.error(
-                    "The reviewer decision could not be saved. "
-                    "Refresh the page and try again."
+                    "The decision could not be saved for this finding. "
+                    "Copy your note before refreshing, then reopen the finding."
+                )
+            except sqlite3.Error:
+                logger.exception("Could not save reviewer decision for brief %s", brief_id)
+                st.error(
+                    "Your decision was not saved. Your changes remain in this form; "
+                    "try saving again."
                 )
             else:
                 st.session_state[flash_key] = "Reviewer decision saved."
@@ -314,15 +321,22 @@ def _render_reviewer_target(
             )
 
 
-def _move_finding(key: str, identities: list[tuple], offset: int) -> None:
+def _move_finding(
+    key: str, identities: list[tuple[ReviewTargetType, int]], offset: int,
+) -> None:
     """Move within the visible queue without changing persisted target indices."""
-    index = identities.index(st.session_state[key])
-    st.session_state[key] = identities[index + offset]
+    current = st.session_state.get(key)
+    # A queued click may arrive after the selection or filter has changed.
+    if current not in identities:
+        return
+    next_index = identities.index(current) + offset
+    if 0 <= next_index < len(identities):
+        st.session_state[key] = identities[next_index]
 
 
 def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
     """Review one original finding beside its supporting source evidence."""
-    st.caption("Check the supporting source text, then record your decision. Save before switching findings.")
+    st.caption("Check the supporting source text, then record your decision. Save changes before leaving this finding.")
     findings = brief_findings(payload.brief)
     if not findings:
         st.info("This brief contains no generated findings that require decisions.")
@@ -490,11 +504,13 @@ def render_bundled_view() -> None:
                 data=serialize_brief_export(export_payload),
                 file_name=brief_export_filename(document["id"]),
                 mime="application/json",
+                on_click="ignore",
                 icon=":material/download:",
                 width="stretch",
                 help=(
-                    "Includes the review brief, source evidence, document metadata, "
-                    "processing time and versions, and the source fingerprint."
+                    "Includes generated findings, source evidence, document metadata, "
+                    "processing provenance, and the saved decision history. "
+                    "Unsaved form changes are excluded."
                 ),
             )
 

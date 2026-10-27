@@ -67,7 +67,9 @@ def test_bundled_view_shows_export_download_before_brief_body(tmp_path, monkeypa
     assert events
     payload = events[-1][1]
     assert payload.brief.evidence
-    assert app.get("download_button")
+    download = app.get("download_button")[0]
+    assert download.label == "Download review brief (JSON)"
+    assert download.proto.ignore_rerun
     assert [tab.label for tab in app.tabs] == [
         "Overview", "Review findings", "Evidence & source", "Run details",
     ]

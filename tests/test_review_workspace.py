@@ -1,5 +1,6 @@
 """Interaction regressions for focused finding review and exact source links."""
 
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -71,6 +72,44 @@ def test_next_previous_and_empty_filter_do_not_write_decisions(reviewed_app):
     assert not app.text_area
     assert any("No findings match" in message.value for message in app.info)
     assert len(database.get_reviewer_decision_history(brief_id, db_path)) == 1
+
+
+def test_failed_save_can_be_retried_without_losing_the_note(reviewed_app, monkeypatch):
+    app, db_path, brief_id = reviewed_app
+    insert = database.insert_reviewer_decision
+    attempts = 0
+
+    def fail_once(decision):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise sqlite3.OperationalError("database is locked")
+        return insert(decision)
+
+    monkeypatch.setattr(database, "insert_reviewer_decision", fail_once)
+    app.selectbox(key=f"review_queue:{brief_id}").select(("risk_domain", 1)).run()
+    app.selectbox(key=f"reviewer:{brief_id}:risk_domain:1:state").select("needs_follow_up")
+    note = "Check the electrical drawings before accepting this finding."
+    app.text_area(key=f"reviewer:{brief_id}:risk_domain:1:note").set_value(note)
+    next(button for button in app.button if button.label == "Save decision").click().run()
+
+    assert not app.exception
+    assert any("try saving again" in error.value for error in app.error)
+    assert app.text_area[0].value == note
+    assert app.selectbox(key=f"reviewer:{brief_id}:risk_domain:1:state").value == "needs_follow_up"
+    assert len(database.get_reviewer_decision_history(brief_id, db_path)) == 1
+    assert not app.get("toast")
+
+    next(button for button in app.button if button.label == "Save decision").click().run()
+
+    assert not app.exception
+    assert not app.error
+    history = database.get_reviewer_decision_history(brief_id, db_path)
+    assert len(history) == 2
+    assert (history[-1].target_type, history[-1].target_index) == ("risk_domain", 1)
+    assert history[-1].state == "needs_follow_up"
+    assert history[-1].note == note
+    assert app.get("toast")
 
 
 def test_overview_action_opens_review_without_writing_a_decision(reviewed_app):
