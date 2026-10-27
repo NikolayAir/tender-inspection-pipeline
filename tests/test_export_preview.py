@@ -5,11 +5,12 @@ from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
+from streamlit.testing.v1.element_tree import Tab
 
 from src.ai.risk_extract import NO_MATCH_NOTICE
 from src.db import database
 from src.exports import serialize_brief_export
-from src.models import ReviewerDecision
+from src.models import ReviewerDecision, ReviewState
 from src.pipeline import BUNDLED_SAMPLES, run_pipeline
 
 APP_PATH = Path(__file__).resolve().parents[1] / "src" / "app" / "streamlit_app.py"
@@ -21,10 +22,11 @@ def saved_review(tmp_path, monkeypatch):
     connect = database.connect
     monkeypatch.setattr(database, "connect", lambda *_args, **_kwargs: connect(db_path))
     document_id, brief_id = run_pipeline(BUNDLED_SAMPLES[0], db_path)
-    for hour, state, note in (
+    saved_decisions: tuple[tuple[int, ReviewState, str], ...] = (
         (9, "needs_follow_up", "Earlier saved note: check the fire drawings."),
         (10, "accepted", "Saved note: the fire drawings have been checked."),
-    ):
+    )
+    for hour, state, note in saved_decisions:
         database.insert_reviewer_decision(
             ReviewerDecision(
                 brief_id=brief_id, target_type="risk_domain", target_index=0,
@@ -40,7 +42,9 @@ def test_opening_download_preview_preserves_unsaved_form_and_saved_history(saved
     app = AppTest.from_file(str(APP_PATH), default_timeout=20).run()
     label = next(option for option in app.selectbox(key="bundled_document").options if option.startswith(f"#{document_id} - "))
     app.selectbox(key="bundled_document").select(label).run()
-    before = serialize_brief_export(database.get_latest_brief_export(document_id, db_path))
+    payload = database.get_latest_brief_export(document_id, db_path)
+    assert payload is not None
+    before = serialize_brief_export(payload)
     note_key = f"reviewer:{brief_id}:risk_domain:0:note"
     state_key = f"reviewer:{brief_id}:risk_domain:0:state"
     app.selectbox(key=state_key).select("rejected")
@@ -50,7 +54,9 @@ def test_opening_download_preview_preserves_unsaved_form_and_saved_history(saved
     assert not app.exception
     assert app.text_area(key=note_key).value == "Unsaved draft that must stay outside the download."
     assert app.selectbox(key=state_key).value == "rejected"
-    assert serialize_brief_export(database.get_latest_brief_export(document_id, db_path)) == before
+    after = database.get_latest_brief_export(document_id, db_path)
+    assert after is not None
+    assert serialize_brief_export(after) == before
     # Streamlit's code display omits the canonical file's terminating newline.
     assert any(code.value == before.rstrip("\n") for code in app.code)
     assert any(text.value == "Saved note: the fire drawings have been checked." for text in app.text)
@@ -70,6 +76,7 @@ def _standalone_preview(payload, json_text):
 def test_viewer_and_exact_json_keep_the_supplied_snapshot_after_a_later_save(saved_review, monkeypatch):
     db_path, document_id, brief_id = saved_review
     captured = database.get_latest_brief_export(document_id, db_path)
+    assert captured is not None
     json_text = serialize_brief_export(captured)
     database.insert_reviewer_decision(
         ReviewerDecision(
@@ -89,7 +96,11 @@ def test_viewer_and_exact_json_keep_the_supplied_snapshot_after_a_later_save(sav
     assert any(code.value == json_text.rstrip("\n") for code in app.code)
     assert any(text.value == "Saved note: the fire drawings have been checked." for text in app.text)
     assert not any("A later decision" in text.value for text in app.text)
-    assert [tab.label for tab in app.tabs] == ["Brief", "Source evidence", "Saved decisions", "File details"]
+    labels = []
+    for tab in app.tabs:
+        assert isinstance(tab, Tab)
+        labels.append(tab.label)
+    assert labels == ["Brief", "Source evidence", "Saved decisions", "File details"]
     assert any(expander.label == "Complete decision history (2)" for expander in app.expander)
     assert any(text.value == captured.brief.evidence[0].snippet for text in app.text)
     assert serialize_brief_export(captured) == json_text
@@ -101,6 +112,7 @@ def test_unmatched_saved_brief_has_a_manual_notice_without_an_invented_gap_or_qu
     db_path = tmp_path / "unmatched.db"
     document_id, _brief_id = run_pipeline(sample, db_path)
     payload = database.get_latest_brief_export(document_id, db_path)
+    assert payload is not None
     app = AppTest.from_function(
         _standalone_preview, args=(payload, serialize_brief_export(payload)),
     ).run()

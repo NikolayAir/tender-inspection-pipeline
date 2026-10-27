@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
+from streamlit.testing.v1.element_tree import Tab
 
 import src.app.streamlit_app as streamlit_app
 from src.ai.risk_extract import MISSING_INFO_PHRASES, extract_brief
@@ -70,7 +71,11 @@ def test_bundled_view_shows_export_download_before_brief_body(tmp_path, monkeypa
     download = app.get("download_button")[0]
     assert download.label == "Download review brief (JSON)"
     assert download.proto.ignore_rerun
-    assert [tab.label for tab in app.tabs] == [
+    labels = []
+    for tab in app.tabs:
+        assert isinstance(tab, Tab)
+        labels.append(tab.label)
+    assert labels == [
         "Overview", "Review findings", "Evidence & source", "Run details",
     ]
     assert app.metric[3].value == (
