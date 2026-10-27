@@ -174,6 +174,11 @@ def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> Non
             f"{total} generated {'finding' if total == 1 else 'findings'} to verify "
             "against the tender documentation."
         )
+        if persisted and total:
+            st.button(
+                "Start reviewing", icon=":material/arrow_forward:", type="primary",
+                on_click=_select_brief_tab, args=("Review findings",),
+            )
         st.markdown("**Detected technical scopes**")
         if brief.technical_scopes:
             _render_scope_tags(brief.technical_scopes)
@@ -183,11 +188,6 @@ def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> Non
             st.markdown("**Review focus areas**")
             _bullets(brief.risk_domains, "No review focus areas detected.")
         _render_information_gaps(brief)
-        if persisted and total:
-            st.button(
-                "Start reviewing", icon=":material/arrow_forward:", type="primary",
-                on_click=_select_brief_tab, args=("Review findings",),
-            )
     with questions:
         st.subheader("Questions to check", anchor=False)
         st.caption("Suggested follow-up questions for checking the full tender documentation.")
@@ -778,7 +778,9 @@ def render() -> None:
         )
 
     with st.container(horizontal=True, horizontal_alignment="distribute", vertical_alignment="center", key="page_header"):
-        st.title(page, width="content", anchor=False)
+        with st.container(key="workspace_heading", width="content", gap=None):
+            st.caption(APP_TITLE)
+            st.title(page, width="content", anchor=False)
         if st.button("How it works", icon=":material/help_outline:", key="open_guide"):
             show_workflow_guide()
     if page == "Review workspace":

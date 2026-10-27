@@ -12,12 +12,16 @@ Tender-to-Inspection Brief provides two review paths:
 ## Review a bundled sample
 
 1. Open **Review workspace** and select a document under **Bundled samples** in the sidebar. The document badge distinguishes public excerpts from synthetic test data.
-2. Scan **Overview** for technical scopes, information gaps, and suggested questions. The header shows the number of findings, source snippets, and saved decisions.
+2. Scan **Overview** for technical scopes, information gaps, and suggested questions. The header shows the number of findings, source snippets, and saved decisions. **Start reviewing** sits below the short finding count in **At a glance**.
 3. Select **Start reviewing**, or open **Review findings**. Choose one finding, check its supporting source text, and use the decision form to record your review. Use **Previous**, **Next**, or the finding selector to move through the brief; **Review status** filters the queue.
 4. Use **Evidence & source** to read complete matching snippets beside the original excerpt and its source attribution. **Run details** contains processing versions, the source fingerprint, the original generated summary, and **Checks on bundled samples**.
 5. Open **Preview JSON** to inspect the saved result and decision history, then use **Download review brief (JSON)** to keep the file.
 
-When the available workspace is narrow, including a tablet or small desktop window with the sidebar open, the app uses a compact metric grid and stacks related panels. Wider workspaces show the source and decision panels side by side. The sidebar starts open on a wide screen and collapsed on a narrow screen. When hidden, use **Menu & samples** at the top left to change workflows or samples; the control has a visible label as well as an arrow.
+When the available workspace is narrow, including a tablet or small desktop window with the sidebar open, the app uses a compact metric grid, stacks related panels and places the JSON actions below the document title. The two actions align to the right and wrap when needed. Wider workspaces show the source and decision panels side by side.
+
+The sidebar starts open on a wide screen and collapsed on a narrow screen. When hidden, use **Menu & samples** at the top left to change workflows or samples; the control has a visible label as well as an arrow. The full application name remains visible above the workspace heading.
+
+![Complete matching source snippet beside the original public tender excerpt](assets/tender-inspection-source-evidence.png)
 
 Suggested questions are prompts for the reviewer, not conclusions about the tender. A keyword match identifies a possible review topic; the reviewer determines what needs follow-up. **Low** is a fixed confidence label and not an accuracy score. Every generated brief requires human review.
 
@@ -55,6 +59,8 @@ The sidebar labels the method **Keyword-based extraction**. The guide explains t
 
 When the sidebar is hidden, **Menu & samples** remains visible in the header. It opens both workflow navigation and the document selector, including on a narrow screen.
 
+![Clearly labelled Menu and samples control when the sidebar is hidden](assets/tender-inspection-navigation.png)
+
 ## Saved results and recovery
 
 The application automatically processes bundled samples whose stored results are missing or incomplete. Completed results and their decisions are retained, including when the bundled source file or extractor version has changed. Restarting or refreshing the application does not explicitly reprocess completed samples.
@@ -68,6 +74,8 @@ If automatic recovery fails, readable saved reviews and JSON downloads remain av
 The download contains the selected persisted brief, its linked processing run, source metadata and evidence, and the complete ordered reviewer-decision history. It uses export schema `1.1.0`.
 
 **Preview JSON** opens a read-only window with **Brief**, **Source evidence**, **Saved decisions**, and **File details**. It shows the latest saved decision for each finding and the complete history separately. **Exact JSON** reveals the file contents with long lines wrapped for reading. **Download this JSON** saves the result shown in that window.
+
+![Read-only JSON preview showing a saved Needs follow-up decision and reviewer note](assets/tender-inspection-json-preview.png)
 
 The preview and its download use the same saved result captured for the displayed workspace. Opening or closing the window does not submit a decision or discard an unfinished note. Unsaved form changes are excluded. This viewer is available for bundled saved briefs; pasted excerpts retain their separate session-only preview.
 

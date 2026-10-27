@@ -18,11 +18,13 @@
     padding-inline: clamp(1rem, 3vw, 5rem); /* Side padding follows viewport width, bounded between 1rem and 5rem. */
 }
 
-.stApp h1 { font-size: 2rem; letter-spacing: -0.045em; }
-.stApp h2 { font-size: 1.45rem; letter-spacing: -0.025em; }
-.stApp h3 { font-size: 1.08rem; letter-spacing: -0.015em; }
+.stApp h1 {
+    font-size: 2rem;
+    letter-spacing: -0.02em; /* Keep large headings compact while preserving letter separation. */
+}
+.stApp h2 { font-size: 1.45rem; letter-spacing: -0.015em; }
+.stApp h3 { font-size: 1.08rem; letter-spacing: normal; }
 .stApp h1, .stApp h2, .stApp h3 { padding-top: 0; }
-.st-key-page_header h1 { padding-bottom: 0; }
 
 /* Captions include source locations and save guidance, so keep them readable. */
 [data-testid="stCaptionContainer"] {
@@ -150,16 +152,19 @@
 /* The sidebar also consumes width. Stack panels when the workspace is narrow,
    including tablet and small desktop windows, rather than only on phones. */
 @container tender-workspace (max-width: 760px) {
-    :is(.st-key-overview_layout, .st-key-review_layout, .st-key-source_layout,
+    :is(.st-key-brief_header, .st-key-overview_layout, .st-key-review_layout, .st-key-source_layout,
         .st-key-run_layout, .st-key-excerpt_layout) > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
         flex-direction: column; /* Stack panels when the remaining workspace becomes too narrow. */
         gap: 1.5rem;
     }
-    :is(.st-key-overview_layout, .st-key-review_layout, .st-key-source_layout,
+    :is(.st-key-brief_header, .st-key-overview_layout, .st-key-review_layout, .st-key-source_layout,
         .st-key-run_layout, .st-key-excerpt_layout) > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         width: 100%;
         min-width: 0; /* Allow the column to shrink instead of forcing the page wider. */
         flex: 1 1 100%; /* Override Streamlit's side-by-side column proportions in the stacked layout. */
+    }
+    .st-key-brief_header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+        gap: 0.75rem;
     }
     .st-key-page_header h1 { font-size: 1.65rem; }
     .st-key-brief_metrics [data-testid="stHorizontalBlock"],
