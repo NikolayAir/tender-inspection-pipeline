@@ -6,6 +6,7 @@
     --tender-muted: #526477; /* Medium slate blue-grey. */
     --tender-surface: #fff; /* White. */
     --tender-border: #d6e0ea; /* Light blue-grey. */
+    --tender-control-border: #7a8ca1; /* Medium slate blue-grey for editable controls. */
 }
 
 .stMainBlockContainer {
@@ -27,6 +28,12 @@
 [data-testid="stCaptionContainer"] {
     color: var(--tender-muted);
     opacity: 1;
+}
+
+/* Distinguish editable controls from reading surfaces; retain native focus styling. */
+.stApp :is([data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"]):not(:focus-within),
+.stApp [data-testid="stSelectbox"] [data-baseweb="select"]:not(:focus-within) > div {
+    border-color: var(--tender-control-border);
 }
 
 /* Shorter reading lines on desktops; retain the native limits on narrow screens. */
