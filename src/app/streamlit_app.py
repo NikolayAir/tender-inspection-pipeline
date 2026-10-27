@@ -150,7 +150,8 @@ def _render_scope_tags(scopes: list[str]) -> None:
 
 def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> None:
     """Show a compact overview without duplicating scopes and focus areas."""
-    summary, questions = st.columns([1.1, 1], gap="large")
+    with st.container(key="overview_layout"):
+        summary, questions = st.columns([1.1, 1], gap="large")
     with summary, st.container(border=True, key="overview_summary"):
         st.subheader("At a glance", anchor=False)
         total = len(brief.risk_domains) + len(brief.missing_info)
@@ -321,7 +322,7 @@ def _move_finding(key: str, identities: list[tuple], offset: int) -> None:
 
 def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
     """Review one original finding beside its supporting source evidence."""
-    st.caption("Check the source on the left and record your decision on the right. Save before switching findings.")
+    st.caption("Check the supporting source text, then record your decision. Save before switching findings.")
     findings = brief_findings(payload.brief)
     if not findings:
         st.info("This brief contains no generated findings that require decisions.")
@@ -383,7 +384,8 @@ def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
     st.caption(f"Finding {index + 1} of {len(visible)} in this view · {len(latest)} of {len(findings)} have saved decisions")
 
     finding = finding_map[selected]
-    source, decision = st.columns([1.15, 1], gap="large")
+    with st.container(key="review_layout"):
+        source, decision = st.columns([1.15, 1], gap="large")
     with source, st.container(border=True, key="finding_evidence"):
         st.badge(finding.kind, color="gray")
         st.subheader(finding.value, anchor=False)
@@ -532,7 +534,8 @@ def render_brief_metrics(
 
 def render_source_evidence(document: dict, brief: InspectionBrief) -> None:
     """Put the evidence index beside its readable source excerpt."""
-    evidence, source = st.columns([1, 1], gap="large")
+    with st.container(key="source_layout"):
+        evidence, source = st.columns([1, 1], gap="large")
     with evidence:
         st.subheader("Evidence index", anchor=False)
         st.caption("Keyword matches with approximate source locations.")
@@ -550,7 +553,8 @@ def render_source_evidence(document: dict, brief: InspectionBrief) -> None:
 
 def render_run_details(payload: VersionedBriefExport) -> None:
     """Separate reproducibility and validation details from everyday review."""
-    run, validation = st.columns([1, 1.2], gap="large")
+    with st.container(key="run_layout"):
+        run, validation = st.columns([1, 1.2], gap="large")
     with run:
         st.subheader("Processing record", anchor=False)
         record = [
@@ -623,7 +627,8 @@ def _remember_adhoc_field(field: str) -> None:
 
 def render_adhoc_view() -> None:
     """Keep input beside a persistent, session-only preview."""
-    input_column, preview_column = st.columns([1, 1.15], gap="large")
+    with st.container(key="excerpt_layout"):
+        input_column, preview_column = st.columns([1, 1.15], gap="large")
     draft = st.session_state.get("adhoc_draft", {})
     for field in ("title", "url", "text"):
         key = f"adhoc_{field}"
@@ -678,7 +683,7 @@ def render_adhoc_view() -> None:
         if preview is None:
             with st.container(border=True, key="preview_empty"):
                 st.subheader("Your brief will appear here", anchor=False)
-                st.write("Paste an excerpt on the left, then generate a review brief.")
+                st.write("Paste a public excerpt and select Generate review brief.")
                 st.caption("Explore detected scopes, information gaps, review questions, and the source text behind each match.")
             return
 

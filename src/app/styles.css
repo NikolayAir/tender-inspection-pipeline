@@ -1,8 +1,11 @@
 /* Keep native widgets and keyboard behaviour; scope layout changes to app keys. */
 .stMainBlockContainer {
+    container-name: tender-workspace; /* Name referenced by the @container rules below. */
+    container-type: inline-size; /* Let child layouts respond to the available workspace width. */
     max-width: 1240px; /* Keep review text readable on wide screens. */
     padding-top: 4rem;
     padding-bottom: 2rem;
+    padding-inline: clamp(1rem, 3vw, 5rem); /* Side padding follows viewport width, bounded between 1rem and 5rem. */
 }
 
 .stApp h1 { font-size: 2rem; letter-spacing: -0.045em; }
@@ -24,14 +27,13 @@
     letter-spacing: -0.08em; /* Keep the initials joined as a compact monogram. */
 }
 .brand-name { font-size: 1.05rem; font-weight: 700; line-height: 1.25; }
-.brand-caption, .eyebrow {
+.brand-caption {
     font-size: 0.7rem;
     letter-spacing: 0.1em; /* Open up small uppercase labels for readability. */
     font-weight: 600;
     text-transform: uppercase;
     opacity: 0.65;
 }
-.eyebrow { margin-bottom: 0.45rem; color: #087f78; opacity: 1; }
 
 .st-key-workspace_nav [role="radiogroup"] { gap: 0.25rem; }
 .st-key-workspace_nav [role="radiogroup"] > label {
@@ -45,7 +47,6 @@
     color: #087f78;
 }
 
-.st-key-brief_header h2 { font-size: 1.35rem; line-height: 1.4; }
 .st-key-brief_header { padding-top: 0.2rem; }
 .st-key-brief_metrics [data-testid="stMetric"] {
     border: 1px solid rgba(127, 142, 146, 0.25);
@@ -72,7 +73,7 @@
     font-size: 0.83rem;
     line-height: 1.45; /* Leave room between lines when a tag label wraps. */
 }
-.st-key-overview_summary, .st-key-overview_next, .st-key-finding_evidence,
+.st-key-overview_summary, .st-key-finding_evidence,
 .st-key-finding_decision, .st-key-excerpt_input {
     padding: 1.15rem;
 }
@@ -96,6 +97,39 @@
     display: none; /* Keep the script-only scroll helper out of the visible layout. */
 }
 
+/* The sidebar also consumes width. Stack panels when the workspace is narrow,
+   including tablet and small desktop windows, rather than only on phones. */
+@container tender-workspace (max-width: 760px) {
+    :is(.st-key-overview_layout, .st-key-review_layout, .st-key-source_layout,
+        .st-key-run_layout, .st-key-excerpt_layout) > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+        flex-direction: column; /* Stack panels when the remaining workspace becomes too narrow. */
+        gap: 1.5rem;
+    }
+    :is(.st-key-overview_layout, .st-key-review_layout, .st-key-source_layout,
+        .st-key-run_layout, .st-key-excerpt_layout) > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        width: 100%;
+        min-width: 0; /* Allow the column to shrink instead of forcing the page wider. */
+        flex: 1 1 100%; /* Override Streamlit's side-by-side column proportions in the stacked layout. */
+    }
+    .st-key-page_header h1 { font-size: 1.65rem; }
+    .st-key-brief_metrics [data-testid="stHorizontalBlock"],
+    .st-key-review_controls [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* Two equal columns, allowed to shrink below their contents' natural width. */
+    }
+    .st-key-review_controls [data-testid="stColumn"]:nth-child(-n+2) { grid-column: 1 / -1; }
+    .st-key-preview_metrics [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr)); /* Keep the three preview metrics together without a minimum content width. */
+        gap: 0.5rem;
+    }
+    :is(.st-key-brief_metrics, .st-key-review_controls, .st-key-preview_metrics) [data-testid="stColumn"] {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+/* Viewport fallback for browsers without container-query support. */
 @media (max-width: 800px) { /* Use browser viewport width, independent of the available workspace width. */
     .stMainBlockContainer { padding: 4rem 1rem 2rem; }
     .stApp h1 { font-size: 1.65rem; }
@@ -126,7 +160,7 @@
 
 /* Soft elevation separates work surfaces without strong blocks of colour. */
 .st-key-brief_metrics [data-testid="stMetric"],
-.st-key-overview_summary, .st-key-overview_next,
+.st-key-overview_summary,
 .st-key-finding_evidence, .st-key-finding_decision, .st-key-excerpt_input {
     box-shadow: 0 3px 16px rgba(26, 58, 66, 0.035);
 }

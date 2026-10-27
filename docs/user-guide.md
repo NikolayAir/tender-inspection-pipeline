@@ -13,11 +13,11 @@ Tender-to-Inspection Brief provides two review paths:
 
 1. Open **Review workspace** and select a document under **Bundled samples** in the sidebar. The document badge distinguishes public excerpts from synthetic test data.
 2. Scan **Overview** for technical scopes, information gaps, and suggested questions. The header shows the number of findings, source snippets, and saved decisions.
-3. Select **Start reviewing**, or open **Review findings**. Choose one finding and compare its supporting source text on the left with the decision form on the right. Use **Previous**, **Next**, or the finding selector to move through the brief; **Review status** filters the queue.
+3. Select **Start reviewing**, or open **Review findings**. Choose one finding, check its supporting source text, and use the decision form to record your review. Use **Previous**, **Next**, or the finding selector to move through the brief; **Review status** filters the queue.
 4. Use **Evidence & source** to read complete matching snippets beside the original excerpt and its source attribution. **Run details** contains processing versions, the source fingerprint, the original generated summary, and the qualitative validation snapshot.
 5. Use **Download review brief (JSON)** to save the result with its processing provenance and decision history.
 
-On narrow screens, the workspace uses a compact metric grid and stacks the source and decision panels. The sidebar starts open on a wide screen and collapsed on a narrow screen. When hidden, use **Menu & samples** at the top left to change workflows or samples; the control has a visible label as well as an arrow.
+When the available workspace is narrow, including a tablet or small desktop window with the sidebar open, the app uses a compact metric grid and stacks related panels. Wider workspaces show the source and decision panels side by side. The sidebar starts open on a wide screen and collapsed on a narrow screen. When hidden, use **Menu & samples** at the top left to change workflows or samples; the control has a visible label as well as an arrow.
 
 Suggested questions are prompts for the reviewer, not conclusions about the tender. A keyword match identifies a possible review topic; the reviewer determines what needs follow-up. The current extractor always returns `confidence="low"` and `human_review_required=true`.
 
@@ -35,7 +35,7 @@ Decisions belong to the specific brief being reviewed. If an explicit pipeline r
 
 1. Open **Analyse a public excerpt** from the sidebar.
 2. Paste non-empty public, non-confidential text, up to 50,000 characters. A document title and source URL are optional; the URL is reference metadata and is not fetched. A `TITLE:` line in the text takes precedence over the optional title field.
-3. Select **Generate review brief**. Inspect the result beside the input using **Findings**, **Evidence**, **Questions**, and **Source**.
+3. Select **Generate review brief**. Inspect the result using **Findings**, **Evidence**, **Questions**, and **Source**. The preview appears beside the input when there is room, or below it in a compact workspace.
 
 The current draft and last generated preview remain available when opening help or switching workflows in the same session, including edits that have not yet been analysed. Editing a field keeps the draft without running extraction. **Generate review brief** updates the result; until then, a changed-input notice identifies the previous preview. If a new submission is invalid, that preview remains clearly labelled. Reloading the browser starts a new session and clears the draft and preview.
 
