@@ -504,7 +504,7 @@ def render_bundled_view() -> None:
         return
 
     with st.container(key="brief_header"):
-        heading, actions = st.columns([3, 1], vertical_alignment="center")
+        heading, actions = st.columns([1, 1], vertical_alignment="center")
         with heading:
             st.subheader(document["title"], anchor=False)
             st.badge(

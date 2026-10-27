@@ -134,20 +134,21 @@ def render_export_actions(
     payload: VersionedBriefExport, json_text: str, filename: str,
 ) -> None:
     """Keep inspection outside the decision form and on its displayed snapshot."""
-    if st.button(
-        "Preview JSON", icon=":material/visibility:",
-        key="preview_export", width="stretch",
-        help="Inspect the saved brief and decision history before downloading.",
-    ):
-        show_export_preview(payload, json_text, filename)
-    # Download these exact bytes without a rerun that could disturb the review draft.
-    st.download_button(
-        "Download review brief (JSON)", data=json_text,
-        file_name=filename, mime="application/json", on_click="ignore",
-        icon=":material/download:", width="stretch",
-        help=(
-            "Includes the generated brief, supporting source passages, "
-            "document and processing details, and saved decision history. "
-            "Unsaved form changes are excluded."
-        ),
-    )
+    with st.container(horizontal=True, horizontal_alignment="right", gap="small"):
+        if st.button(
+            "Preview JSON", icon=":material/visibility:", type="tertiary",
+            key="preview_export", width="content",
+            help="Inspect the saved brief and decision history before downloading.",
+        ):
+            show_export_preview(payload, json_text, filename)
+        # Download these exact bytes without a rerun that could disturb the review draft.
+        st.download_button(
+            "Download review brief (JSON)", data=json_text,
+            file_name=filename, mime="application/json", on_click="ignore",
+            icon=":material/download:", width="content",
+            help=(
+                "Includes the generated brief, supporting source passages, "
+                "document and processing details, and saved decision history. "
+                "Unsaved form changes are excluded."
+            ),
+        )
