@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.ai.risk_extract import KEYWORD_DOMAINS, MISSING_INFO_PHRASES
+from src.ai.risk_extract import KEYWORD_DOMAINS, MISSING_INFO_PHRASES, NO_MATCH_NOTICE
 from src.exports import VersionedBriefExport
 from src.models import (
     EvidenceSnippet,
@@ -36,7 +36,14 @@ class Finding:
 
     @property
     def kind(self) -> str:
-        return "Focus area" if self.target_type == "risk_domain" else "Information gap"
+        if self.target_type == "risk_domain":
+            return "Focus area"
+        return "Manual review notice" if self.value == NO_MATCH_NOTICE else "Information gap"
+
+
+def information_gaps(brief: InspectionBrief) -> list[str]:
+    """Exclude the baseline no-match notice without changing persisted targets."""
+    return [value for value in brief.missing_info if value != NO_MATCH_NOTICE]
 
 
 def category_for_term(term: str) -> str:

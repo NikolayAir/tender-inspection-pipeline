@@ -130,3 +130,30 @@ def test_edited_draft_stays_distinct_from_last_preview_until_generation(excerpt_
     assert app.metric[0].value == "2"
     assert any(item.value == revised for item in app.text)
     assert database.get_documents(db_path) == documents
+
+
+@pytest.mark.parametrize("optional_title", ["", "Title supplied by the reviewer"])
+def test_preview_keeps_a_readable_title_when_the_excerpt_title_line_is_blank(excerpt_app, optional_title):
+    app, db_path, documents = excerpt_app
+    app.text_input(key="adhoc_title").set_value(optional_title)
+    raw_text = "TITLE:   \nFire safety works."
+    _generate(app, raw_text)
+
+    assert not app.exception
+    expected = optional_title or "Pasted public excerpt"
+    assert any(item.value == expected for item in app.markdown)
+    document, _brief = app.session_state["adhoc_preview"]
+    assert document.title == expected
+    assert document.raw_text == raw_text
+    assert database.get_documents(db_path) == documents
+
+
+def test_no_match_notice_is_not_counted_as_an_information_gap(excerpt_app):
+    app, db_path, documents = excerpt_app
+    _generate(app, "General public announcement.")
+
+    assert not app.exception
+    assert [metric.value for metric in app.metric] == ["0", "0", "0"]
+    assert any("manual review needed" in item.value for item in app.info)
+    assert any("No explicit gaps matched" in item.value for item in app.markdown)
+    assert database.get_documents(db_path) == documents

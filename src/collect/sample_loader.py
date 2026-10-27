@@ -20,14 +20,16 @@ DEFAULT_SOURCE = "synthetic_sample"
 
 
 def _extract_title(text: str, fallback: str = "Untitled synthetic tender sample") -> str:
-    """Use the 'TITLE:' line if present, else fall back to ``fallback``.
+    """Use the first non-empty 'TITLE:' line, else fall back to ``fallback``.
 
     The default fallback preserves the original bundled-sample behaviour; callers
     that load pasted text can pass their own fallback title.
     """
     for line in text.split("\n"):
         if line.strip().upper().startswith("TITLE:"):
-            return line.split(":", 1)[1].strip()
+            title = line.split(":", 1)[1].strip()
+            if title:
+                return title
     return fallback
 
 
@@ -45,6 +47,7 @@ def _parse_header_metadata(full_text: str) -> dict[str, str]:
         content = stripped[1:].strip()
         if ":" not in content:
             continue
+        # Split once so URL schemes and other colons in metadata values survive.
         key, value = content.split(":", 1)
         metadata[key.strip().upper()] = value.strip()
     return metadata
@@ -87,7 +90,7 @@ def build_document_from_text(
     Reuses ``clean_text`` and the ``TITLE:`` extraction logic. Nothing is read
     from or written to disk or SQLite, and ``extract_brief`` is not called here;
     this only constructs the document so a caller can analyse pasted text without
-    persisting it. ``load_sample`` behaviour is unchanged.
+    persisting it. Bundled samples share the same title and cleaning helpers.
 
     An empty ``source_url`` is normalised to ``None`` to match the model's
     convention for documents without a public URL.

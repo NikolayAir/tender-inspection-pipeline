@@ -9,7 +9,7 @@ from streamlit.testing.v1 import AppTest
 
 from src.ai.risk_extract import extract_brief
 from src.app.review import Finding, evidence_for_finding
-from src.collect.sample_loader import load_sample
+from src.collect.sample_loader import build_document_from_text, load_sample
 from src.db import database
 from src.models import ReviewerDecision
 from src.pipeline import BUNDLED_SAMPLES, run_pipeline
@@ -166,3 +166,12 @@ def test_fallback_finding_does_not_borrow_another_findings_evidence():
     brief = extract_brief(load_sample())
     assert evidence_for_finding(brief, Finding("missing_info", 2, "Manual review needed.")) == []
     assert evidence_for_finding(brief, Finding("risk_domain", 0, "Unknown domain")) == []
+
+
+def test_no_match_notice_keeps_its_review_identity_without_claiming_a_gap():
+    brief = extract_brief(build_document_from_text("General public announcement."))
+    finding = Finding("missing_info", 0, brief.missing_info[0])
+
+    assert finding.kind == "Manual review notice"
+    assert finding.identity == ("missing_info", 0)
+    assert evidence_for_finding(brief, finding) == []

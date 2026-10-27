@@ -53,7 +53,7 @@ def show_workflow_guide() -> None:
     with cli:
         st.subheader("Run the same pipeline locally", anchor=False)
         st.caption("From the repository root, after installing the dependencies:")
-        st.code("python -m src.pipeline --db /tmp/tender-review-demo.db", language="bash")
+        st.code("python -m src.pipeline --db data/processed/tender-review-demo.db", language="bash")
         st.write("This processes the bundled samples into a separate local database.")
         st.code(
             "python -m src.pipeline\n"

@@ -26,7 +26,7 @@ if str(ROOT) not in sys.path:
 
 import streamlit as st  # noqa: E402
 
-from src.ai.risk_extract import extract_brief  # noqa: E402
+from src.ai.risk_extract import NO_MATCH_NOTICE, extract_brief  # noqa: E402
 from src.app.guide import show_workflow_guide  # noqa: E402
 from src.app.review import (  # noqa: E402
     REVIEW_FILTERS,
@@ -34,6 +34,7 @@ from src.app.review import (  # noqa: E402
     category_for_term,
     evidence_for_finding,
     filter_findings,
+    information_gaps,
     latest_decisions,
 )
 from src.app.scroll import render_pending_scroll, request_scroll  # noqa: E402
@@ -142,6 +143,17 @@ def _select_brief_tab(label: str) -> None:
     request_scroll("review")
 
 
+def _render_information_gaps(brief: InspectionBrief) -> None:
+    """Distinguish extracted gaps from the baseline's generic review notice."""
+    st.markdown("**Information gaps**")
+    _bullets(
+        information_gaps(brief),
+        "No explicit gaps matched. This does not establish completeness.",
+    )
+    if NO_MATCH_NOTICE in brief.missing_info:
+        st.info(NO_MATCH_NOTICE)
+
+
 def _render_scope_tags(scopes: list[str]) -> None:
     """Treat generated scope names as text inside decorative tags."""
     tags = "".join(f'<span class="scope-tag">{escape(scope)}</span>' for scope in scopes)
@@ -167,11 +179,7 @@ def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> Non
         if brief.risk_domains != brief.technical_scopes:
             st.markdown("**Review focus areas**")
             _bullets(brief.risk_domains, "No review focus areas detected.")
-        st.markdown("**Information gaps**")
-        _bullets(
-            brief.missing_info,
-            "No explicit gaps matched. This does not establish completeness.",
-        )
+        _render_information_gaps(brief)
         if persisted and total:
             st.button(
                 "Start reviewing", icon=":material/arrow_forward:", type="primary",
@@ -541,7 +549,7 @@ def render_brief_metrics(
     with st.container(key="brief_metrics"):
         focus, gaps, evidence, reviewed = st.columns(4)
         focus.metric("Focus areas", len(brief.risk_domains))
-        gaps.metric("Information gaps", len(brief.missing_info))
+        gaps.metric("Information gaps", len(information_gaps(brief)))
         evidence.metric("Source snippets", len(brief.evidence))
         total = len(brief.risk_domains) + len(brief.missing_info)
         saved = len({(d.target_type, d.target_index) for d in payload.reviewer_decisions}) if payload else 0
@@ -593,7 +601,7 @@ def render_run_details(payload: VersionedBriefExport) -> None:
 
 
 def render_validation_snapshot() -> None:
-    """Render the committed qualitative comparison without hiding it in an accordion."""
+    """Render the committed qualitative comparison in the Run details view."""
     try:
         summary = load_validation_summary()
     except Exception:
@@ -664,7 +672,7 @@ def render_adhoc_view() -> None:
         )
         title = st.text_input(
             "Document title (optional)", key="adhoc_title",
-            help="Used only if the pasted text does not contain a TITLE: line.",
+            help="Used unless the pasted text contains a non-empty TITLE: line.",
             on_change=_remember_adhoc_field, args=("title",),
         )
         source_url = st.text_input(
@@ -712,11 +720,11 @@ def render_adhoc_view() -> None:
         elif inputs != st.session_state.get("adhoc_preview_input"):
             st.info("Input has changed. Showing the previous preview until you generate again.")
         else:
-            st.caption("From the last generated excerpt. Submit again to update this preview.")
+            st.caption("From the last generated excerpt. Generate again to update this preview.")
         with st.container(key="preview_metrics"):
             focus, gaps, evidence = st.columns(3)
         focus.metric("Focus areas", len(brief.risk_domains))
-        gaps.metric("Information gaps", len(brief.missing_info))
+        gaps.metric("Information gaps", len(information_gaps(brief)))
         evidence.metric("Source snippets", len(brief.evidence))
         findings, snippets, questions, source = st.tabs(
             ["Findings", "Evidence", "Questions", "Source"], key="preview_tabs",
@@ -729,8 +737,7 @@ def render_adhoc_view() -> None:
                 st.caption("No technical scopes matched. Read the excerpt manually.")
             if brief.risk_domains != brief.technical_scopes:
                 _bullets(brief.risk_domains, "No review focus areas detected.")
-            st.markdown("**Information gaps**")
-            _bullets(brief.missing_info, "No explicit gaps matched. This does not establish completeness.")
+            _render_information_gaps(brief)
         with snippets:
             render_evidence_inspector(brief, key="preview_evidence_match")
         with questions:

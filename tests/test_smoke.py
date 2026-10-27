@@ -289,6 +289,21 @@ def test_build_document_from_text_default_title_when_no_title_line():
     assert doc2.title == "Custom default"
 
 
+@pytest.mark.parametrize(
+    "raw_text,fallback,expected",
+    [
+        ("TITLE:\nPublic works.", "Pasted public excerpt", "Pasted public excerpt"),
+        ("  title: \t\nPublic works.", "Optional title", "Optional title"),
+        ("TITLE:\nTITLE: Roof works\nPublic works.", "Optional title", "Roof works"),
+    ],
+)
+def test_empty_title_lines_do_not_suppress_a_usable_title(raw_text, fallback, expected):
+    document = build_document_from_text(raw_text, default_title=fallback)
+
+    assert document.title == expected
+    assert document.raw_text == raw_text
+
+
 def test_build_document_from_text_default_source_is_user_input():
     doc = build_document_from_text("Body text")
     assert doc.source == "user_input"
