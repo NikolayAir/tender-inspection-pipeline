@@ -81,3 +81,52 @@ def test_invalid_resubmission_keeps_the_previous_preview_explicit(excerpt_app):
     assert not app.warning
     assert not app.info
     assert any(item.value == "Electrical installation works." for item in app.text)
+
+
+def test_unsubmitted_draft_survives_help_and_navigation_without_analysis(excerpt_app, monkeypatch):
+    from src.ai import risk_extract
+
+    app, db_path, documents = excerpt_app
+
+    def unexpected_analysis(_document):
+        raise AssertionError("Editing a draft must not generate a brief")
+
+    monkeypatch.setattr(risk_extract, "extract_brief", unexpected_analysis)
+    app.text_area(key="adhoc_text").set_value(EXCERPT)
+    app.text_input(key="adhoc_title").set_value("Unsubmitted draft title")
+    app.text_input(key="adhoc_url").set_value("https://example.org/unsubmitted")
+    app.button(key="open_guide").click().run()
+    app.radio(key="workspace_nav").set_value("Review workspace").run()
+    app.radio(key="workspace_nav").set_value("Analyse a public excerpt").run()
+
+    assert not app.exception
+    assert app.text_area(key="adhoc_text").value == EXCERPT
+    assert app.text_input(key="adhoc_title").value == "Unsubmitted draft title"
+    assert app.text_input(key="adhoc_url").value == "https://example.org/unsubmitted"
+    assert "adhoc_preview" not in app.session_state
+    assert not app.metric
+    assert database.get_documents(db_path) == documents
+
+
+def test_edited_draft_stays_distinct_from_last_preview_until_generation(excerpt_app):
+    app, db_path, documents = excerpt_app
+    _generate(app)
+    revised = "TITLE: Revised excerpt\nHVAC and electrical installation works."
+    app.text_area(key="adhoc_text").set_value(revised).run()
+
+    assert not app.exception
+    assert any("Input has changed" in message.value for message in app.info)
+    assert app.metric[0].value == "1"
+    assert any(item.value == EXCERPT for item in app.text)
+    app.radio(key="workspace_nav").set_value("Review workspace").run()
+    app.radio(key="workspace_nav").set_value("Analyse a public excerpt").run()
+    assert app.text_area(key="adhoc_text").value == revised
+    assert any(item.value == EXCERPT for item in app.text)
+    assert any("Input has changed" in message.value for message in app.info)
+
+    _generate(app, revised)
+    assert not app.exception
+    assert not app.info
+    assert app.metric[0].value == "2"
+    assert any(item.value == revised for item in app.text)
+    assert database.get_documents(db_path) == documents

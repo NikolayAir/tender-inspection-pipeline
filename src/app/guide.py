@@ -33,7 +33,8 @@ def show_workflow_guide() -> None:
             "3. Select **Generate review brief**. The preview appears beside the input, "
             "with separate views for findings, evidence, questions, and source text.\n"
             "4. Edit the input and generate again to update it. "
-            "The last generated preview remains available while you use the app."
+            "The draft and last generated preview remain available when you open "
+            "help or switch workflows in the same session."
         )
         st.info("Pasted previews stay in the current session. They have no saved reviewer decisions or JSON download.", icon=":material/visibility:")
     with method:

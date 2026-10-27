@@ -613,6 +613,14 @@ def render_validation_snapshot() -> None:
         )
 
 
+def _remember_adhoc_field(field: str) -> None:
+    """Keep committed edits after Streamlit removes a hidden page's widgets."""
+    draft = dict(st.session_state.get("adhoc_draft", {}))
+    draft[field] = st.session_state[f"adhoc_{field}"]
+    st.session_state["adhoc_draft"] = draft
+    st.session_state["adhoc_input_invalid"] = False
+
+
 def render_adhoc_view() -> None:
     """Keep input beside a persistent, session-only preview."""
     input_column, preview_column = st.columns([1, 1.15], gap="large")
@@ -625,26 +633,31 @@ def render_adhoc_view() -> None:
     with input_column, st.container(border=True, key="excerpt_input"):
         st.subheader("Public excerpt", anchor=False)
         st.caption("Public, non-confidential text only · Up to 50,000 characters")
-        with st.form("adhoc_form", border=False):
-            text = st.text_area(
-                "Paste a public tender or technical document excerpt",
-                height=260, max_chars=MAX_ADHOC_CHARS, key="adhoc_text",
-                placeholder="Paste the tender scope, technical requirements, or a public notice excerpt…",
-            )
-            title = st.text_input(
-                "Document title (optional)", key="adhoc_title",
-                help="Used only if the pasted text does not contain a TITLE: line.",
-            )
-            source_url = st.text_input(
-                "Source URL (optional)", key="adhoc_url",
-                help="Reference metadata only. The application does not fetch this URL.",
-            )
-            submitted = st.form_submit_button(
-                "Generate review brief", type="primary", icon=":material/play_arrow:", width="stretch",
-            )
-        st.caption("Processed in this session. No saved decisions or JSON export.")
+        # Widget callbacks retain field edits outside the temporary widget keys.
+        # Restoring those fields does not run extraction; only Generate does that.
+        text = st.text_area(
+            "Paste a public tender or technical document excerpt",
+            height=260, max_chars=MAX_ADHOC_CHARS, key="adhoc_text",
+            placeholder="Paste the tender scope, technical requirements, or a public notice excerpt…",
+            on_change=_remember_adhoc_field, args=("text",),
+        )
+        title = st.text_input(
+            "Document title (optional)", key="adhoc_title",
+            help="Used only if the pasted text does not contain a TITLE: line.",
+            on_change=_remember_adhoc_field, args=("title",),
+        )
+        source_url = st.text_input(
+            "Source URL (optional)", key="adhoc_url",
+            help="Reference metadata only. The application does not fetch this URL.",
+            on_change=_remember_adhoc_field, args=("url",),
+        )
+        inputs = {"title": title, "url": source_url, "text": text}
+        submitted = st.button(
+            "Generate review brief", type="primary", icon=":material/play_arrow:", width="stretch",
+        )
+        st.caption("Draft and preview stay in this session. Decisions and JSON downloads are available for bundled samples.")
         if submitted:
-            st.session_state["adhoc_draft"] = {"title": title, "url": source_url, "text": text}
+            st.session_state["adhoc_draft"] = inputs
             error = adhoc_input_error(text)
             st.session_state["adhoc_input_invalid"] = bool(error)
             if error:
@@ -656,6 +669,8 @@ def render_adhoc_view() -> None:
                     default_title=title.strip() or "Pasted public excerpt",
                 )
                 st.session_state["adhoc_preview"] = (document, extract_brief(document))
+                # Keep submitted fields separate from the draft so later edits can mark the preview as out of date.
+                st.session_state["adhoc_preview_input"] = inputs
                 request_scroll("preview")
 
     with preview_column, st.container(key="preview_result"):
@@ -673,6 +688,8 @@ def render_adhoc_view() -> None:
         st.write(document.title)
         if st.session_state.get("adhoc_input_invalid"):
             st.info("Your latest input was not analysed. Showing the last generated preview.")
+        elif inputs != st.session_state.get("adhoc_preview_input"):
+            st.info("Input has changed. Showing the previous preview until you generate again.")
         else:
             st.caption("From the last generated excerpt. Submit again to update this preview.")
         with st.container(key="preview_metrics"):

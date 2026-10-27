@@ -37,7 +37,7 @@ Decisions belong to the specific brief being reviewed. If an explicit pipeline r
 2. Paste non-empty public, non-confidential text, up to 50,000 characters. A document title and source URL are optional; the URL is reference metadata and is not fetched. A `TITLE:` line in the text takes precedence over the optional title field.
 3. Select **Generate review brief**. Inspect the result beside the input using **Findings**, **Evidence**, **Questions**, and **Source**.
 
-The last generated preview and submitted input remain available when opening help or switching workflows in the same session. Edit the input and submit again to update the result. If a new submission is invalid, the previous preview remains clearly labelled. Reloading the browser starts a new session and clears the preview.
+The current draft and last generated preview remain available when opening help or switching workflows in the same session, including edits that have not yet been analysed. Editing a field keeps the draft without running extraction. **Generate review brief** updates the result; until then, a changed-input notice identifies the previous preview. If a new submission is invalid, that preview remains clearly labelled. Reloading the browser starts a new session and clears the draft and preview.
 
 This path uses the same text cleaning and extraction as the bundled workflow. Pasted content is processed only in the current session; it is not written to SQLite or exported. The application does not scrape websites, parse PDFs, or call an external model or API.
 
