@@ -22,7 +22,9 @@ def show_workflow_guide() -> None:
             "3. **Open Review findings.** Compare one suggested finding with the quoted source text. "
             "Choose Accepted, Rejected, or Needs follow-up in the decision panel, "
             "add an optional note, and select Save decision.\n"
-            "4. **Download review brief (JSON).** This structured data file contains the "
+            "4. **Preview JSON**, then **Download review brief (JSON)** when needed. "
+            "The preview lets you read the saved brief and decision history before downloading. "
+            "This structured data file contains the "
             "generated brief, supporting text, processing details and saved decision history. "
             "Unsaved decisions and notes are not included."
         )

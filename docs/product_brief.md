@@ -27,7 +27,7 @@ Each generated brief contains a summary, technical scopes and review focus areas
 
 For persisted bundled briefs, reviewers can record `accepted`, `rejected`, or `needs_follow_up` decisions with optional notes. Every saved change appends a history event without modifying the generated brief.
 
-Persisted briefs can be downloaded as deterministic, versioned JSON containing document metadata, the linked processing run, the generated brief and source evidence, and the complete ordered reviewer-decision history.
+Persisted briefs can be inspected in a read-only JSON preview and downloaded as deterministic, versioned JSON containing document metadata, the linked processing run, the generated brief and source evidence, and the complete ordered reviewer-decision history.
 
 Saved decisions remain tied to the brief the reviewer inspected. Refreshing a result creates a new brief without transferring earlier decisions. Failed processing preserves the previous saved review.
 

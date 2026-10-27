@@ -15,7 +15,7 @@ Tender-to-Inspection Brief provides two review paths:
 2. Scan **Overview** for technical scopes, information gaps, and suggested questions. The header shows the number of findings, source snippets, and saved decisions.
 3. Select **Start reviewing**, or open **Review findings**. Choose one finding, check its supporting source text, and use the decision form to record your review. Use **Previous**, **Next**, or the finding selector to move through the brief; **Review status** filters the queue.
 4. Use **Evidence & source** to read complete matching snippets beside the original excerpt and its source attribution. **Run details** contains processing versions, the source fingerprint, the original generated summary, and **Checks on bundled samples**.
-5. Use **Download review brief (JSON)** to save the result with its processing provenance and decision history.
+5. Open **Preview JSON** to inspect the saved result and decision history, then use **Download review brief (JSON)** to keep the file.
 
 When the available workspace is narrow, including a tablet or small desktop window with the sidebar open, the app uses a compact metric grid and stacks related panels. Wider workspaces show the source and decision panels side by side. The sidebar starts open on a wide screen and collapsed on a narrow screen. When hidden, use **Menu & samples** at the top left to change workflows or samples; the control has a visible label as well as an arrow.
 
@@ -67,6 +67,10 @@ If automatic recovery fails, readable saved reviews and JSON downloads remain av
 
 The download contains the selected persisted brief, its linked processing run, source metadata and evidence, and the complete ordered reviewer-decision history. It uses export schema `1.1.0`.
 
-The source excerpt, displayed findings, reviewer controls, and download use the same saved result for that page load. Downloading does not rerun the page or submit the decision form. If reprocessing finishes after the page reads its data, the next page rerun shows the newer result.
+**Preview JSON** opens a read-only window with **Brief**, **Source evidence**, **Saved decisions**, and **File details**. It shows the latest saved decision for each finding and the complete history separately. **Exact JSON** reveals the file contents with long lines wrapped for reading. **Download this JSON** saves the result shown in that window.
+
+The preview and its download use the same saved result captured for the displayed workspace. Opening or closing the window does not submit a decision or discard an unfinished note. Unsaved form changes are excluded. This viewer is available for bundled saved briefs; pasted excerpts retain their separate session-only preview.
+
+The source excerpt, displayed findings, reviewer controls, and download use the same saved result for that page load. Downloading does not rerun the page or submit the decision form. If reprocessing finishes after the page reads its data, the next full page rerun shows the newer result.
 
 The export represents one brief and its linked records. It does not contain the full source text or a complete document-revision archive. See the [export contract](architecture.md#versioned-json-export) for compatibility and serialisation details.

@@ -10,7 +10,7 @@ The application uses deterministic keyword rules to identify technical scopes, f
 
 1. Choose a bundled public or synthetic sample in **Review workspace**, or open **Analyse a public excerpt** to paste public, non-confidential text.
 2. Scan the overview, then inspect one finding at a time with its supporting source text before recording a decision.
-3. For bundled samples, save **Accepted**, **Rejected**, or **Needs follow-up** decisions with optional notes, then download the brief as JSON.
+3. For bundled samples, save **Accepted**, **Rejected**, or **Needs follow-up** decisions with optional notes. Use **Preview JSON** to inspect the saved brief and history before downloading the file.
 
 Open **How it works** in the application for a short walkthrough. See the [user guide](docs/user-guide.md) for the workspace tabs, review filters, session previews, and downloads.
 

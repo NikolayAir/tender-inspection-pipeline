@@ -27,6 +27,7 @@ if str(ROOT) not in sys.path:
 import streamlit as st  # noqa: E402
 
 from src.ai.risk_extract import NO_MATCH_NOTICE, extract_brief  # noqa: E402
+from src.app.export_preview import render_export_actions  # noqa: E402
 from src.app.guide import show_workflow_guide  # noqa: E402
 from src.app.review import (  # noqa: E402
     REVIEW_FILTERS,
@@ -512,19 +513,9 @@ def render_bundled_view() -> None:
                 color="gray",
             )
         with actions:
-            st.download_button(
-                "Download review brief (JSON)",
-                data=serialize_brief_export(export_payload),
-                file_name=brief_export_filename(document["id"]),
-                mime="application/json",
-                on_click="ignore",
-                icon=":material/download:",
-                width="stretch",
-                help=(
-                    "Includes the generated brief, supporting source passages, "
-                    "document and processing details, and saved decision history. "
-                    "Unsaved form changes are excluded."
-                ),
+            render_export_actions(
+                export_payload, serialize_brief_export(export_payload),
+                brief_export_filename(document["id"]),
             )
 
     render_brief_metrics(export_payload.brief, export_payload)

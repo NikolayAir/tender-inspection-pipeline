@@ -38,6 +38,7 @@ def test_preview_never_renders_saved_decisions_or_writes_to_storage(excerpt_app)
     assert app.metric[1].value == "1"
     assert [tab.label for tab in app.tabs] == ["Findings", "Evidence", "Questions", "Source"]
     assert not app.get("download_button")
+    assert all(button.key != "preview_export" for button in app.button)
     effects = [element for element in app.get("html") if element.proto.unsafe_allow_javascript]
     assert len(effects) == 1
     assert ".st-key-preview_result" in effects[0].proto.body

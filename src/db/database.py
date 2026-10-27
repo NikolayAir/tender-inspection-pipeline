@@ -255,6 +255,8 @@ def _backfill_legacy_processing_runs(conn: sqlite3.Connection) -> None:
     ).fetchall()
 
     for row in rows:
+        # Old databases retain only the current source text. This migration can
+        # fingerprint that text, but cannot recover the source used by an older brief.
         run_cursor = conn.execute(
             """
             INSERT INTO processing_runs (

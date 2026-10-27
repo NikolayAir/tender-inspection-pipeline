@@ -68,7 +68,7 @@ If recovery fails, the interface keeps readable saved documents, reviews, and do
 
 The interface reads the selected document, its latest brief, processing metadata, and reviewer-decision history in one SQLite read transaction. The source excerpt, findings, reviewer controls, and JSON download therefore use the same saved result, even if an explicit pipeline run saves a newer result while the page is loading. Standalone exports also read the result and decisions in one transaction.
 
-The read transaction ends before rendering. A page may finish with the earlier result if reprocessing completes after its snapshot begins; the next page rerun reads the latest result. A form submitted for an earlier brief is not applied to a newer brief. These guarantees do not provide reviewer identity, authentication, or simultaneous review editing.
+The read transaction ends before rendering. A page may finish with the earlier result if reprocessing completes after its snapshot begins; the next full page rerun reads the latest result. The JSON preview and download actions retain that captured payload and serialised JSON in a Streamlit fragment. Opening the viewer does not read storage again or rerun the decision form; the viewer's download uses the same JSON. A form submitted for an earlier brief is not applied to a newer brief. These guarantees do not provide reviewer identity, authentication, or simultaneous review editing.
 
 ## Versioned JSON export
 

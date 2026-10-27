@@ -39,6 +39,11 @@
 /* Shorter reading lines on desktops; retain the native limits on narrow screens. */
 @media (min-width: 1024px) {
     [role="dialog"]:has(.st-key-workflow_guide_intro) { width: 72rem; }
+    [role="dialog"]:has(.st-key-export_preview_intro) { width: 64rem; }
+}
+
+[role="dialog"]:has(.st-key-export_preview_intro) [data-testid="stText"] {
+    overflow-wrap: anywhere; /* Keep long URLs and unbroken values inside the JSON preview. */
 }
 
 .app-brand { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
