@@ -7,7 +7,7 @@
     min-width: 10rem; /* Leave room for the icon and label on wider screens. */
     height: 2.5rem;
     padding: 0.35rem 0.65rem;
-    border: 1px solid rgba(127, 142, 146, 0.3);
+    border: 1px solid var(--tender-border);
     border-radius: 0.5rem;
 }
 

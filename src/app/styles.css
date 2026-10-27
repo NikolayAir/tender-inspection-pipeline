@@ -1,4 +1,13 @@
 /* Keep native widgets and keyboard behaviour; scope layout changes to app keys. */
+:root {
+    --tender-accent: #2b5f91; /* Muted medium blue. */
+    --tender-accent-soft: #eaf2f8; /* Very pale blue. */
+    --tender-brand: #16324f; /* Deep navy blue. */
+    --tender-muted: #526477; /* Medium slate blue-grey. */
+    --tender-surface: #fff; /* White. */
+    --tender-border: #d6e0ea; /* Light blue-grey. */
+}
+
 .stMainBlockContainer {
     container-name: tender-workspace; /* Name referenced by the @container rules below. */
     container-type: inline-size; /* Let child layouts respond to the available workspace width. */
@@ -14,6 +23,12 @@
 .stApp h1, .stApp h2, .stApp h3 { padding-top: 0; }
 .st-key-page_header h1 { padding-bottom: 0; }
 
+/* Captions include source locations and save guidance, so keep them readable. */
+[data-testid="stCaptionContainer"] {
+    color: var(--tender-muted);
+    opacity: 1;
+}
+
 .app-brand { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
 .brand-mark {
     display: grid;
@@ -21,8 +36,8 @@
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 0.7rem;
-    background: #087f78;
-    color: #fff;
+    background: var(--tender-brand);
+    color: #fff; /* White lettering on navy. */
     font-weight: 750;
     letter-spacing: -0.08em; /* Keep the initials joined as a compact monogram. */
 }
@@ -32,7 +47,7 @@
     letter-spacing: 0.1em; /* Open up small uppercase labels for readability. */
     font-weight: 600;
     text-transform: uppercase;
-    opacity: 0.65;
+    color: var(--tender-muted);
 }
 
 .st-key-workspace_nav [role="radiogroup"] { gap: 0.25rem; }
@@ -43,13 +58,14 @@
     margin: 0;
 }
 .st-key-workspace_nav [role="radiogroup"] > label:has(input:checked) {
-    background: color-mix(in srgb, #087f78 10%, transparent);
-    color: #087f78;
+    background: var(--tender-accent-soft);
+    color: var(--tender-accent);
 }
 
 .st-key-brief_header { padding-top: 0.2rem; }
 .st-key-brief_metrics [data-testid="stMetric"] {
-    border: 1px solid rgba(127, 142, 146, 0.25);
+    background: var(--tender-surface);
+    border: 1px solid var(--tender-border);
     border-radius: 0.65rem;
     padding: 0.65rem 1rem;
 }
@@ -67,8 +83,8 @@
 }
 .scope-tag {
     padding: 0.35rem 0.65rem;
-    background: color-mix(in srgb, #087f78 8%, transparent);
-    border: 1px solid color-mix(in srgb, #087f78 20%, transparent);
+    background: var(--tender-accent-soft);
+    border: 1px solid var(--tender-border);
     border-radius: 0.4rem;
     font-size: 0.83rem;
     line-height: 1.45; /* Leave room between lines when a tag label wraps. */
@@ -76,6 +92,12 @@
 .st-key-overview_summary, .st-key-finding_evidence,
 .st-key-finding_decision, .st-key-excerpt_input {
     padding: 1.15rem;
+}
+.st-key-overview_summary, .st-key-finding_evidence,
+.st-key-finding_decision, .st-key-excerpt_input,
+.st-key-evidence_quote, .st-key-source_text,
+.st-key-preview_source, .st-key-preview_empty {
+    background: var(--tender-surface);
 }
 .st-key-source_text pre {
     white-space: pre-wrap; /* Preserve source spacing and line breaks while allowing wrapping. */
@@ -162,15 +184,19 @@
 .st-key-brief_metrics [data-testid="stMetric"],
 .st-key-overview_summary,
 .st-key-finding_evidence, .st-key-finding_decision, .st-key-excerpt_input {
-    box-shadow: 0 3px 16px rgba(26, 58, 66, 0.035);
+    box-shadow: 0 3px 16px rgba(22, 50, 79, 0.035); /* 3px down, 16px blur, no sideways offset. Very faint navy shadow. */
 }
 .stApp button[kind="primary"] {
-    box-shadow: 0 3px 8px rgba(8, 127, 120, 0.12);
+    box-shadow: 0 3px 8px rgba(43, 95, 145, 0.12); /* 3px down with an 8px blur. Soft muted-blue shadow. */
 }
 .stApp button {
     transition: box-shadow 150ms ease, border-color 150ms ease; /* Soften hover and focus changes over 0.15 seconds. */
 }
-.stApp button:hover { box-shadow: 0 2px 8px rgba(26, 58, 66, 0.07); }
+.stApp button:hover { box-shadow: 0 2px 8px rgba(22, 50, 79, 0.07); /* Soft navy shadow. */ }
+.stApp button:focus-visible {
+    outline: 2px solid var(--tender-accent); /* Show keyboard focus without changing the button's size. */
+    outline-offset: 3px; /* Separate the focus ring from the button border. */
+}
 @media (prefers-reduced-motion: reduce) { /* Respect the user's reduced-motion setting. */
     .stApp button { transition: none; }
 }
