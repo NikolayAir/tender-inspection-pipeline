@@ -415,7 +415,6 @@ def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
             st.text(snippet.snippet)
         if not snippets:
             st.info("No direct supporting snippet was captured for this finding. Read the full source excerpt before deciding.")
-        st.caption("A keyword match identifies a review topic; it does not establish a defect or compliance result.")
     with decision, st.container(border=True, key="finding_decision"):
         st.subheader("Your decision", anchor=False)
         _render_reviewer_target(
@@ -587,13 +586,10 @@ def render_run_details(payload: VersionedBriefExport) -> None:
         st.markdown("  \n".join(record))
         st.markdown("**Source fingerprint · SHA-256**")
         st.code(payload.processing_run.source_content_fingerprint, language=None, wrap_lines=True)
-        st.caption(
-            "This code identifies the cleaned source text used in this run. "
-            "It does not preserve earlier copies of that text."
-        )
-        st.caption("Decisions belong to this brief. Reprocessing creates a new brief with its own review history.")
-        st.markdown("**Original generated summary**")
-        st.text(payload.brief.summary)
+        st.caption("Identifies the cleaned source text used for this brief.")
+        st.caption("Reprocessing creates a new brief; earlier decisions stay with their original brief.")
+        with st.expander("Original generated summary"):
+            st.text(payload.brief.summary)
     with validation:
         st.subheader("Checks on bundled samples", anchor=False)
         render_validation_snapshot()

@@ -34,6 +34,8 @@ The [validation regression test](../tests/test_validation.py) reruns extraction 
 
 The validation snapshot in **Run details** reads the committed CSV for display. It does not run a new evaluation of the selected document or pasted text. **Evidence & source** separately pairs complete source snippets with the selected document excerpt.
 
+![Processing provenance and qualitative validation in the Run details tab](assets/tender-inspection-evidence-validation.png)
+
 ## Interpretation limits
 
 The validation set is too small to support precision, recall, F1, or broad language-coverage claims. The synthetic fixture was written to exercise keyword coverage, and French terms were added for the curated public examples. These examples are not an independent performance evaluation.

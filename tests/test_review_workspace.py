@@ -11,6 +11,7 @@ from src.ai.risk_extract import extract_brief
 from src.app.review import Finding, evidence_for_finding
 from src.collect.sample_loader import build_document_from_text, load_sample
 from src.db import database
+from src.exports import serialize_brief_export
 from src.models import ReviewerDecision
 from src.pipeline import BUNDLED_SAMPLES, run_pipeline
 
@@ -124,6 +125,22 @@ def test_overview_action_opens_review_without_writing_a_decision(reviewed_app):
     assert ".st-key-brief_tabs" in effects[0].proto.body
     app.run()
     assert not any(element.proto.unsafe_allow_javascript for element in app.get("html"))
+
+
+def test_run_details_keeps_the_original_summary_collapsed_and_unchanged(reviewed_app):
+    app, db_path, _brief_id = reviewed_app
+    document_id = next(document["id"] for document in database.get_documents(db_path) if document["source"] == "synthetic_sample")
+    payload = database.get_latest_brief_export(document_id, db_path)
+    assert payload is not None
+    before = serialize_brief_export(payload)
+    summaries = [section for section in app.expander if section.label == "Original generated summary"]
+
+    assert len(summaries) == 1
+    assert summaries[0].proto.expanded is False
+    assert [item.value for item in summaries[0].text] == [payload.brief.summary]
+    after = database.get_latest_brief_export(document_id, db_path)
+    assert after is not None
+    assert serialize_brief_export(after) == before
 
 
 def test_gap_selection_saves_the_gap_index_and_shows_its_own_evidence(reviewed_app):

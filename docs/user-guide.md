@@ -14,7 +14,7 @@ Tender-to-Inspection Brief provides two review paths:
 1. Open **Review workspace** and select a document under **Bundled samples** in the sidebar. The document badge distinguishes public excerpts from synthetic test data.
 2. Scan **Overview** for technical scopes, information gaps, and suggested questions. The header shows the number of findings, source snippets, and saved decisions. **Start reviewing** sits below the short finding count in **At a glance**.
 3. Select **Start reviewing**, or open **Review findings**. Choose one finding, check its supporting source text, and use the decision form to record your review. Use **Previous**, **Next**, or the finding selector to move through the brief; **Review status** filters the queue.
-4. Use **Evidence & source** to read complete matching snippets beside the original excerpt and its source attribution. **Run details** contains processing versions, the source fingerprint, the original generated summary, and **Checks on bundled samples**.
+4. Use **Evidence & source** to read complete matching snippets beside the original excerpt and its source attribution. **Run details** contains processing versions, the source fingerprint, and **Checks on bundled samples**. Expand **Original generated summary** to read the exact saved text.
 5. Open **Preview JSON** to inspect the saved result and decision history, then use **Download review brief (JSON)** to keep the file.
 
 When the available workspace is narrow, including a tablet or small desktop window with the sidebar open, the app uses a compact metric grid, stacks related panels and places the JSON actions below the document title. The two actions align to the right and wrap when needed. Wider workspaces show the source and decision panels side by side.
