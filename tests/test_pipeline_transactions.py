@@ -97,6 +97,8 @@ def test_failed_processing_preserves_all_stored_data_and_exports(
         )
         error_type = RuntimeError
     elif failure_stage == "commit":
+        # Defer a deliberately invalid foreign key so inserts succeed and COMMIT
+        # itself fails, exercising rollback after all source and result writes.
         with closing(database.connect(db_path)) as conn, conn:
             conn.execute(
                 "CREATE TRIGGER fail_on_commit AFTER INSERT ON briefs BEGIN "

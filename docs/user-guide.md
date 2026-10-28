@@ -69,6 +69,8 @@ To refresh completed results, use the [pipeline commands](development.md#pipelin
 
 If automatic recovery fails, readable saved reviews and JSON downloads remain available with a recovery warning. Refresh to retry. Unavailable storage or an unreadable selected review receives a separate error message. See [recovery and consistent reads](architecture.md#recovery-and-consistent-reads) for the exact guarantees.
 
+If a saved review contains invalid data, the app asks you to choose another document. Other readable reviews remain available. The invalid review and its decision history are retained; the app does not automatically replace the result.
+
 ## JSON download
 
 The download contains the selected persisted brief, its linked processing run, source metadata and evidence, and the complete ordered reviewer-decision history. It uses export schema `1.1.0`.

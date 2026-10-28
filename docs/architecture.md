@@ -66,6 +66,8 @@ Recovery checks completeness before extraction and again inside the write transa
 
 If recovery fails, the interface keeps readable saved documents, reviews, and downloads available, shows a recovery warning, and retries on refresh. A successful retry retains the selected document. An empty database, unavailable storage, and an unreadable selected review receive separate messages.
 
+Malformed JSON and saved values that fail model validation receive a distinct message when the selected review is opened. The interface logs the cause and keeps other documents selectable. The failed read does not repair, replace or delete saved records; completed results remain outside automatic reprocessing.
+
 ### Consistent review reads
 
 The interface reads the selected document, its latest brief, processing metadata, and reviewer-decision history in one SQLite read transaction. The source excerpt, findings, reviewer controls, and JSON download therefore use the same saved result, even if an explicit pipeline run saves a newer result while the page is loading. Standalone exports also read the result and decisions in one transaction.

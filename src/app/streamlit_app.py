@@ -16,6 +16,7 @@ import sqlite3
 import sys
 from datetime import datetime, timezone
 from html import escape
+from json import JSONDecodeError
 from pathlib import Path
 
 # Allow `streamlit run src/app/streamlit_app.py` to import the `src` package by
@@ -25,6 +26,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import streamlit as st  # noqa: E402
+from pydantic import ValidationError  # noqa: E402
 
 from src.ai.risk_extract import NO_MATCH_NOTICE, extract_brief  # noqa: E402
 from src.app.export_preview import render_export_actions  # noqa: E402
@@ -478,6 +480,13 @@ def render_bundled_view() -> None:
 
     try:
         snapshot = database.get_document_review(document["id"])
+    except (JSONDecodeError, ValidationError):
+        logger.exception("Saved review data is invalid for document %s", document["id"])
+        st.error(
+            "This saved review cannot be displayed because some stored data is invalid. "
+            "Choose another document to continue."
+        )
+        return
     except (OSError, sqlite3.Error):
         logger.exception("Could not read the saved review for document %s", document["id"])
         st.error("The saved review for this document is currently unavailable. Refresh to retry.")

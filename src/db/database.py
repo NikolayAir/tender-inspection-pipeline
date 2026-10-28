@@ -32,7 +32,6 @@ from src.exports import (
     VersionedBriefExport,
 )
 from src.models import (
-    EvidenceSnippet,
     InspectionBrief,
     ProcessingRun,
     ReviewerDecision,
@@ -76,6 +75,7 @@ def transaction(
         yield connection
         return
 
+    # The connection context commits or rolls back; closing() releases the handle.
     with closing(connect(db_path)) as conn, conn:
         conn.execute("BEGIN IMMEDIATE")
         yield conn
@@ -636,10 +636,8 @@ def _inspection_brief_from_row(row: sqlite3.Row) -> InspectionBrief:
         risk_domains=json.loads(row["risk_domains"]),
         missing_info=json.loads(row["missing_info"]),
         review_questions=json.loads(row["review_questions"]),
-        evidence=[
-            EvidenceSnippet(**item)
-            for item in json.loads(row["evidence"])
-        ],
+        # Let the model validate both the evidence list and its nested records.
+        evidence=json.loads(row["evidence"]),
         confidence=row["confidence"],
         human_review_required=bool(row["human_review_required"]),
     )

@@ -115,6 +115,8 @@ def test_parallel_recovery_keeps_the_completed_review_and_only_reports_new_resul
         database.insert_document(sample, db_path)
 
     original_extract = pipeline.extract_brief
+    # Use events to force the race: pause the first recovery after its initial
+    # check, then let another session save and review the sample before resuming.
     slow_started = Event()
     resume_slow = Event()
     failures: list[BaseException] = []
