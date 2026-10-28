@@ -78,7 +78,7 @@ The test suite covers:
 | Processing provenance and legacy restoration | [Provenance](../tests/test_provenance.py) |
 | Atomic writes, recovery, and database access | [Transactions](../tests/test_pipeline_transactions.py), [sample recovery](../tests/test_sample_recovery.py), [connections](../tests/test_database_connections.py) |
 | Reviewer decisions and interface behaviour | [Decision history](../tests/test_reviewer_decisions.py), [reviewer UI](../tests/test_reviewer_ui.py), [recovery UI](../tests/test_sample_recovery_ui.py), [review snapshots](../tests/test_review_snapshot.py) |
-| Focused workspace and session previews | [Review queues and source selection](../tests/test_review_workspace.py), [preview persistence and storage isolation](../tests/test_excerpt_workspace.py) |
+| Focused workspace, action states and session drafts | [Review queues, saved/edited states and source selection](../tests/test_review_workspace.py), [preview states and storage isolation](../tests/test_excerpt_workspace.py) |
 | Export contracts and stable output across runs | [Exports](../tests/test_exports.py), [reproducibility](../tests/test_reproducibility.py) |
 | Read-only JSON viewer and unfinished review forms | [Download preview](../tests/test_export_preview.py) |
 | Literal source formatting in saved and pasted reviews | [Source display and unchanged exports](../tests/test_literal_display.py) |

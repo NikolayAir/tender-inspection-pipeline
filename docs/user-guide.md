@@ -29,9 +29,11 @@ Suggested questions are prompts for the reviewer, not conclusions about the tend
 
 For each generated focus area or information gap, select **Accepted**, **Rejected**, or **Needs follow-up**, optionally add a note, and save. Notes are limited to 2,000 characters. Items without a saved decision appear as **Unreviewed**; displaying that state does not create a database record.
 
-Save before leaving a finding, including when changing documents or workflows. If storage temporarily prevents a save, the decision and note remain in the form so the save can be retried. When a save changes an item's status, a filtered queue may advance to another matching finding. The confirmation appears once, and the saved-decision count updates. An empty filter means no findings match that status; change the filter to continue. **Decisions saved** counts findings with a recorded decision, including those still marked **Needs follow-up**.
+**Save decision** records the selected decision and optional note for the current finding. After editing a saved decision, **Save changes** uses the primary button style and shows **Unsaved changes**. A successful save shows a check mark, **Decision saved** and a secondary **Save again** button. The saved or unsaved indicator updates when you finish editing a field; editing alone does not write to the saved history or JSON.
 
-Each save appends an event. The latest event determines the displayed state, and earlier states and notes remain in the history. Saving a decision does not alter the generated brief. Generated questions are not separate decision targets.
+Unsubmitted choices and notes stay with their finding and brief during navigation in the same browser session. Reloading the browser clears these drafts. If a database error prevents saving, the choice and note remain in the form. Select **Retry save** without refreshing the page. When a save changes an item's status, a filtered queue may advance to another matching finding. The confirmation appears once, and the saved-decision count updates. An empty filter means no findings match that status; change the filter to continue. **Decisions saved** counts findings with a recorded decision, including those still marked **Needs follow-up**.
+
+Each save appends an event, including **Save again** when the fields are unchanged. The latest event determines the displayed state, and earlier states and notes remain in the history. Saving a decision does not alter the generated brief. Generated questions are not separate decision targets.
 
 Decisions belong to the specific brief being reviewed. If an explicit pipeline run creates a new brief, earlier decisions remain attached to the earlier brief and are not copied to the new one. A form submitted for an earlier brief is not applied to a newer brief.
 
@@ -74,6 +76,8 @@ To refresh completed results, use the [pipeline commands](development.md#pipelin
 If automatic recovery fails, readable saved reviews and JSON downloads remain available with a recovery warning. Refresh to retry. Unavailable storage or an unreadable selected review receives a separate error message. See [recovery and consistent reads](architecture.md#recovery-and-consistent-reads) for the exact guarantees.
 
 If a saved review contains invalid data, the app asks you to choose another document. Other readable reviews remain available. The invalid review and its decision history are retained; the app does not automatically replace the result.
+
+If the app confirms a saved decision and then reports that the review could not be loaded, the save has completed. The read error does not undo that decision.
 
 ## JSON download
 

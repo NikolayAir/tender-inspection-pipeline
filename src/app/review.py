@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from string import punctuation
+from typing import TypedDict
 
 from src.ai.risk_extract import KEYWORD_DOMAINS, MISSING_INFO_PHRASES, NO_MATCH_NOTICE
 from src.exports import VersionedBriefExport
@@ -36,6 +37,16 @@ REVIEW_FILTERS = {
 }
 
 _MARKDOWN_ESCAPES = str.maketrans({character: f"\\{character}" for character in punctuation})
+
+
+class ReviewSubmission(TypedDict):
+    """An explicit save request for the brief and finding shown to the reviewer."""
+
+    brief_id: int
+    target_type: ReviewTargetType
+    target_index: int
+    state: ReviewState
+    note: str
 
 
 def review_state_label(state: ReviewState | None) -> str:

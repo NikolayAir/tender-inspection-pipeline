@@ -150,7 +150,7 @@ def test_page_keeps_source_findings_export_and_decisions_on_one_result(
     reviewer.select("rejected")
     note = next(widget for widget in app.text_area if widget.key == key.replace(":state", ":note"))
     note.set_value(f"Decision for displayed {expected_domain}.")
-    next(button for button in app.button if button.label == "Save decision").click().run()
+    app.button(key=f"reviewer:{expected_id}:risk_domain:0:save").click().run()
 
     assert not app.exception
     latest_history = database.get_reviewer_decision_history(published[0], db_path)

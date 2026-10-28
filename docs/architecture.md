@@ -36,7 +36,7 @@ Rules do not interpret context, and the taxonomy has limited French construction
 | `documents` | Current source record for a logical document | Complete source-text revisions are not preserved |
 | `processing_runs` | Timestamp, extractor and schema versions, and source fingerprint for one run | A new record is stored for each persisted run |
 | `briefs` | Generated result linked to one exact processing run | Generated briefs remain immutable |
-| `reviewer_decisions` | Human-authored state and optional note for one generated target | Every saved change appends an event |
+| `reviewer_decisions` | Human-authored state and optional note for one generated target | Each successful save appends an event |
 
 A logical document is identified by `(source, title)`. Explicit processing reuses that document, updates its current source record, and appends a processing run and brief. Earlier briefs and their decisions remain stored; the interface displays the latest brief.
 
@@ -73,6 +73,8 @@ Malformed JSON and saved values that fail model validation receive a distinct me
 The interface reads the selected document, its latest brief, processing metadata, and reviewer-decision history in one SQLite read transaction. The source excerpt, findings, reviewer controls, and JSON download therefore use the same saved result, even if an explicit pipeline run saves a newer result while the page is loading. Standalone exports also read the result and decisions in one transaction.
 
 The read transaction ends before rendering. A page may finish with the earlier result if reprocessing completes after its snapshot begins; the next full page rerun reads the latest result. The JSON preview and download actions retain that captured payload and serialised JSON in a Streamlit fragment. Opening the viewer does not read storage again or rerun the decision form; the viewer's download uses the same JSON. A form submitted for an earlier brief is not applied to a newer brief. These guarantees do not provide reviewer identity, authentication, or simultaneous review editing.
+
+Review controls use a separate fragment, so editing fields or moving between findings retains the displayed snapshot. Draft choices and notes are kept in the session under the original brief, target type and target index. Only the save button queues a submission. A full rerun reads the current brief before writing; a request for an earlier brief is rejected. After a successful write, another consistent read supplies the updated review and export. If that read fails, the interface reports that the decision was saved while explaining that the review is unavailable.
 
 ## Versioned JSON export
 

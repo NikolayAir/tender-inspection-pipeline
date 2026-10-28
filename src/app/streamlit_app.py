@@ -34,6 +34,7 @@ from src.app.guide import show_workflow_guide  # noqa: E402
 from src.app.review import (  # noqa: E402
     REVIEW_FILTERS,
     REVIEW_STATE_OPTIONS,
+    ReviewSubmission,
     brief_findings,
     category_for_term,
     escape_markdown,
@@ -94,8 +95,53 @@ def reviewer_widget_key(
     target_index: int,
     field: str,
 ) -> str:
-    """Return a stable Streamlit key for one persisted review target."""
+    """Return a stable widget or session key for one persisted review target."""
     return f"reviewer:{brief_id}:{target_type}:{target_index}:{field}"
+
+
+def _remember_reviewer_draft(
+    brief_id: int, target_type: ReviewTargetType, target_index: int,
+) -> None:
+    """Retain edited fields in the session without writing a decision."""
+    st.session_state[reviewer_widget_key(brief_id, target_type, target_index, "draft")] = {
+        "state": st.session_state[reviewer_widget_key(brief_id, target_type, target_index, "state")],
+        "note": st.session_state[reviewer_widget_key(brief_id, target_type, target_index, "note")],
+    }
+    st.session_state.pop(reviewer_widget_key(brief_id, target_type, target_index, "error"), None)
+
+
+def _persist_review_submission(brief_id: int, submission: ReviewSubmission | None) -> bool:
+    """Save only after a full rerun has read the current brief snapshot."""
+    if submission is None:
+        return False
+    if submission["brief_id"] != brief_id:
+        st.warning("The selected brief has changed. The previous decision was not saved.")
+        return False
+    identity = brief_id, submission["target_type"], submission["target_index"]
+    error_key = reviewer_widget_key(*identity, "error")
+    try:
+        decision = ReviewerDecision(
+            **submission, decided_at=datetime.now(timezone.utc),
+        )
+        database.insert_reviewer_decision(decision)
+    except ValueError:
+        logger.exception("Invalid reviewer decision for brief %s", brief_id)
+        st.session_state[error_key] = (
+            "The decision could not be saved for this finding. "
+            "Copy your note before refreshing, then reopen the finding.", False,
+        )
+    except sqlite3.Error:
+        logger.exception("Could not save reviewer decision for brief %s", brief_id)
+        st.session_state[error_key] = (
+            "Your decision was not saved. Your changes remain in this form; "
+            "try saving again.", True,
+        )
+    else:
+        st.session_state.pop(reviewer_widget_key(*identity, "draft"), None)
+        st.session_state.pop(error_key, None)
+        st.session_state[reviewer_widget_key(*identity, "saved")] = "Reviewer decision saved."
+        return True
+    return False
 
 
 def reviewer_history_rows(
@@ -241,73 +287,78 @@ def _render_reviewer_target(
             st.markdown("**Current reviewer note:**")
             st.text(current.note or "No note provided")
 
-    form_key = reviewer_widget_key(
-        brief_id, target_type, target_index, "decision_form"
-    )
+    draft_key = reviewer_widget_key(brief_id, target_type, target_index, "draft")
+    error_key = reviewer_widget_key(brief_id, target_type, target_index, "error")
+    # These non-widget keys survive when another finding's controls are shown.
+    draft = st.session_state.get(draft_key, {})
+    initial_state = draft.get("state", current.state if current else None)
     selected_index = (
         0
-        if current is None
-        else REVIEW_STATE_OPTIONS.index(current.state) + 1
+        if initial_state is None
+        else REVIEW_STATE_OPTIONS.index(initial_state) + 1
+    )
+    selected_state = st.selectbox(
+        "Reviewer decision", options=(None, *REVIEW_STATE_OPTIONS),
+        index=selected_index, format_func=review_state_label,
+        key=reviewer_widget_key(brief_id, target_type, target_index, "state"),
+        on_change=_remember_reviewer_draft, args=(brief_id, target_type, target_index),
+        help="Accept or reject the generated finding, or mark it as needing follow-up.",
+    )
+    saved_note = current.note or "" if current else ""
+    note = st.text_area(
+        "Reviewer note (optional)",
+        value=draft.get("note", saved_note),
+        max_chars=2000, height=110,
+        key=reviewer_widget_key(brief_id, target_type, target_index, "note"),
+        on_change=_remember_reviewer_draft, args=(brief_id, target_type, target_index),
+        help="Explain your decision or what needs follow-up. Use the save button to record the note. Up to 2,000 characters.",
+    ) or ""
+    # Compare notes using the storage model's trimming and blank-to-None rule.
+    matches_saved = (
+        current is not None and selected_state == current.state
+        and (note.strip() or None) == current.note
+    )
+    dirty = not matches_saved and (
+        current is not None or selected_state is not None or bool(note.strip())
+    )
+    save_error = st.session_state.get(error_key)
+    if matches_saved and not save_error:
+        st.session_state.pop(draft_key, None)
+    # The second tuple item marks a retryable failure. A failed Save again still
+    # needs Retry save even when its fields match the previous saved event.
+    if save_error and save_error[1]:
+        save_label, save_icon = "Retry save", ":material/refresh:"
+    elif matches_saved and not save_error:
+        save_label, save_icon = "Save again", ":material/check_circle:"
+    elif current is not None:
+        save_label, save_icon = "Save changes", ":material/save:"
+    else:
+        save_label, save_icon = "Save decision", ":material/save:"
+    submitted = st.button(
+        save_label, icon=save_icon, width="stretch",
+        type="secondary" if matches_saved and not save_error else "primary",
+        key=reviewer_widget_key(brief_id, target_type, target_index, "save"),
+        help="Save another history entry with these values." if matches_saved and not save_error
+        else "Save this decision and note to the selected brief.",
     )
 
-    with st.form(form_key):
-        selected_state = st.selectbox(
-            "Reviewer decision",
-            options=(None, *REVIEW_STATE_OPTIONS),
-            index=selected_index,
-            format_func=review_state_label,
-            key=reviewer_widget_key(
-                brief_id, target_type, target_index, "state"
-            ),
-            help=(
-                "Accept or reject the generated finding, or mark it as needing "
-                "follow-up."
-            ),
-        )
-        note = st.text_area(
-            "Reviewer note (optional)",
-            value=current.note if current and current.note else "",
-            max_chars=2000,
-            height=110,
-            key=reviewer_widget_key(
-                brief_id, target_type, target_index, "note"
-            ),
-            help=(
-                "Explain your decision or what needs follow-up. The note is saved "
-                "when you select Save decision. Up to 2,000 characters."
-            ),
-        )
-        submitted = st.form_submit_button("Save decision", type="primary", width="stretch")
-
     if submitted:
+        st.session_state[draft_key] = {"state": selected_state, "note": note}
         if selected_state is None:
             st.warning("Select a reviewer decision before saving.")
         else:
-            try:
-                decision = ReviewerDecision(
-                    brief_id=brief_id,
-                    target_type=target_type,
-                    target_index=target_index,
-                    state=selected_state,
-                    note=note,
-                    decided_at=datetime.now(timezone.utc),
-                )
-                database.insert_reviewer_decision(decision)
-            except ValueError:
-                logger.exception("Invalid reviewer decision for brief %s", brief_id)
-                st.error(
-                    "The decision could not be saved for this finding. "
-                    "Copy your note before refreshing, then reopen the finding."
-                )
-            except sqlite3.Error:
-                logger.exception("Could not save reviewer decision for brief %s", brief_id)
-                st.error(
-                    "Your decision was not saved. Your changes remain in this form; "
-                    "try saving again."
-                )
-            else:
-                st.session_state[flash_key] = "Reviewer decision saved."
-                st.rerun()
+            st.session_state["_pending_review_save"] = ReviewSubmission(
+                brief_id=brief_id, target_type=target_type, target_index=target_index,
+                state=selected_state, note=note,
+            )
+            st.rerun(scope="app")
+
+    if save_error:
+        st.error(save_error[0])
+    elif matches_saved:
+        st.badge("Decision saved", icon=":material/check:", color="green")
+    elif dirty:
+        st.badge("Unsaved changes", icon=":material/edit:", color="orange")
 
     history_rows = reviewer_history_rows(history, target_type, target_index)
     if history_rows:
@@ -339,9 +390,12 @@ def _move_finding(
         st.session_state[key] = identities[next_index]
 
 
+# Editing fields or changing findings keeps the displayed snapshot. Saving asks
+# for a full rerun so the current brief is checked before writing.
+@st.fragment
 def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
     """Review one original finding beside its supporting source evidence."""
-    st.caption("Check the supporting source text, then record your decision. Save changes before leaving this finding.")
+    st.caption("Check the source, then save your decision. Unsaved changes stay in this browser session.")
     findings = brief_findings(payload.brief)
     if not findings:
         st.info("This brief contains no generated findings that require decisions.")
@@ -444,6 +498,8 @@ def _ensure_demo_data() -> list[dict]:
 
 def render_bundled_view() -> None:
     """Render persisted review briefs for bundled samples."""
+    # Consume a save once, including when its document can no longer be read.
+    submission = st.session_state.pop("_pending_review_save", None)
     try:
         documents = _ensure_demo_data()
     except Exception:
@@ -477,10 +533,18 @@ def render_bundled_view() -> None:
         st.caption("Saved results and reviewer decisions are retained between visits.")
     document = labels[choice]
 
+    saved = False
     try:
         snapshot = database.get_document_review(document["id"])
+        if snapshot is not None and snapshot[1] is not None:
+            saved = _persist_review_submission(snapshot[1].brief_id, submission)
+            if saved:
+                # The write has committed; a later read error must still report that the decision was saved.
+                snapshot = database.get_document_review(document["id"])
     except (JSONDecodeError, ValidationError):
         logger.exception("Saved review data is invalid for document %s", document["id"])
+        if saved:
+            st.success("Reviewer decision saved.")
         st.error(
             "This saved review cannot be displayed because some stored data is invalid. "
             "Choose another document to continue."
@@ -488,6 +552,8 @@ def render_bundled_view() -> None:
         return
     except (OSError, sqlite3.Error):
         logger.exception("Could not read the saved review for document %s", document["id"])
+        if saved:
+            st.success("Reviewer decision saved.")
         st.error("The saved review for this document is currently unavailable. Refresh to retry.")
         return
 
