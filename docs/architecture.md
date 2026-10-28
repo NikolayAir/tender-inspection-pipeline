@@ -6,7 +6,24 @@ The Streamlit interface and command-line pipeline share Python extraction and Py
 
 ## Processing paths
 
-The [processing overview in the README](../README.md#how-it-works) shows the shared extraction path, session-only preview, and persisted review and export workflow. The steps below describe the implementation.
+The [compact overview in the README](../README.md#how-it-works) summarises the two workflows. This diagram expands the shared processing path and the stored records used for review and export.
+
+```mermaid
+flowchart TD
+    bundled["Bundled sample<br/>public or synthetic excerpt"] --> normalise("Normalise text")
+    pasted["Pasted public excerpt"] --> normalise
+    normalise --> extract("Apply deterministic<br/>keyword rules")
+    extract --> brief["InspectionBrief<br/>summary + technical scopes<br/>review focus areas + gap signals<br/>questions + source evidence"]
+
+    brief -->|Pasted excerpt| preview("Inspect session preview<br/>no saved decisions or export")
+    brief -->|Bundled sample| save("Record provenance<br/>and save atomically")
+    save --> db[("SQLite<br/>documents + runs<br/>immutable briefs<br/>reviewer decision history")]
+    db -->|Read saved brief| review("Human review<br/>verify findings against<br/>source evidence")
+    review -->|Append decisions| db
+    db --> export["Versioned JSON export<br/>brief + source metadata<br/>provenance + review history"]
+```
+
+Rounded boxes denote actions, square-cornered boxes denote inputs or outputs, and the cylinder denotes persistent storage. The atomic save covers one bundled sample; reviewer decisions are appended separately. JSON export is available before or after decisions are saved.
 
 The bundled path is coordinated by [`src/pipeline.py`](../src/pipeline.py):
 

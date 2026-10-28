@@ -22,20 +22,17 @@ The Streamlit interface and command-line pipeline use the same text cleaning, ke
 
 ```mermaid
 flowchart TD
-    bundled["Bundled sample<br/>public or synthetic excerpt"] --> normalise("Normalise text")
-    pasted["Pasted public excerpt"] --> normalise
-    normalise --> extract("Apply deterministic<br/>keyword rules")
-    extract --> brief["InspectionBrief<br/>summary + technical scopes<br/>review focus areas + gap signals<br/>questions + source evidence"]
+    bundled["Bundled sample"] --> extract("Clean text<br/>Keyword rules")
+    pasted["Pasted public text"] --> extract
 
-    brief -->|Pasted excerpt| preview("Inspect session preview<br/>no saved decisions or export")
-    brief -->|Bundled sample| save("Record provenance<br/>and save atomically")
-    save --> db[("SQLite<br/>documents + runs<br/>immutable briefs<br/>reviewer decision history")]
-    db -->|Read saved brief| review("Human review<br/>verify findings against<br/>source evidence")
-    review -->|Append decisions| db
-    db --> export["Versioned JSON export<br/>brief + source metadata<br/>provenance + review history"]
+    extract -->|Pasted| preview["Session-only preview"]
+    extract -->|Bundled: atomic save<br/>source + run + brief| db[("SQLite")]
+
+    db <--> review("Human review<br/>Check evidence<br/>Append decisions")
+    db --> export["Versioned<br/>JSON export"]
 ```
 
-Rounded boxes denote actions, square-cornered boxes denote inputs or outputs, and the cylinder denotes persistent storage. JSON export is available before or after reviewer decisions are saved.
+The atomic save covers one sample's source record, processing run and generated brief. JSON export is available before or after reviewer decisions are saved. Pasted previews have no saved decisions or export.
 
 - Each persisted brief links to a processing run with extractor and schema versions and a SHA-256 fingerprint of the normalised source.
 - Reviewer decisions append history events without changing the generated brief.
@@ -43,7 +40,7 @@ Rounded boxes denote actions, square-cornered boxes denote inputs or outputs, an
 - Failed sample processing preserves previously saved data.
 - The displayed review and JSON export are built from the same SQLite read snapshot.
 
-See [architecture and data contracts](docs/architecture.md) for processing steps and exact guarantees, and the [decision log](docs/decision_log.md) for rationale and trade-offs.
+See [architecture and data contracts](docs/architecture.md#processing-paths) for the detailed diagram, processing steps and exact guarantees, and the [decision log](docs/decision_log.md) for rationale and trade-offs.
 
 ## Run locally
 
