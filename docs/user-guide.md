@@ -33,7 +33,11 @@ For each generated focus area or information gap, select **Accepted**, **Rejecte
 
 Unsubmitted choices and notes stay with their finding and brief during navigation in the same browser session. Returning from **Analyse a public excerpt** restores the selected document, workspace tab, status filter and finding. Reloading the browser clears this session context and its drafts. If a database error prevents saving, the choice and note remain in the form. Select **Retry save** without refreshing the page. When a save changes an item's status, a filtered queue may advance to another matching finding. The confirmation appears once, and the saved-decision count updates. An empty filter means no findings match that status; change the filter to continue. **Decisions saved** counts findings with a recorded decision, including those still marked **Needs follow-up**.
 
+The finding selector uses a fixed number within each finding type. These numbers stay the same when filtering or saving decisions. **Your decision** shows the selected finding's current saved status.
+
 Each save appends an event, including **Save again** when the fields are unchanged. The latest event determines the displayed state, and earlier states and notes remain in the history. Saving a decision does not alter the generated brief. Generated questions are not separate decision targets.
+
+![Finding review with supporting source evidence beside an unsaved Needs follow-up decision and note](assets/tender-inspection-reviewer-decisions.png)
 
 Decisions belong to the specific brief being reviewed. If an explicit pipeline run creates a new brief, earlier decisions remain attached to the earlier brief and are not copied to the new one. A form submitted for an earlier brief is not applied to a newer brief.
 

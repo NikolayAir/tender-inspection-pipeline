@@ -82,6 +82,42 @@ def test_review_action_distinguishes_saved_values_from_unsaved_edits(reviewed_ap
     assert len(database.get_reviewer_decision_history(brief_id, db_path)) == 3
 
 
+@pytest.mark.parametrize("identity", [("risk_domain", 1), ("missing_info", 1)])
+def test_saving_then_editing_keeps_finding_selection_and_option_labels(reviewed_app, identity):
+    app, db_path, brief_id = reviewed_app
+    queue_key = f"review_queue:{brief_id}"
+    field_prefix = f"reviewer:{brief_id}:{identity[0]}:{identity[1]}"
+    original_labels = app.selectbox(key=queue_key).options
+    app.selectbox(key=queue_key).select(identity).run()
+    app.selectbox(key=f"{field_prefix}:state").select("needs_follow_up").run()
+    app.text_area(key=f"{field_prefix}:note").set_value("Saved note for this finding.").run()
+    app.button(key=f"{field_prefix}:save").click().run()
+
+    assert not app.exception
+    assert app.selectbox(key=queue_key).value == identity
+    # The browser sends a formatted option string on later widget interactions.
+    # Saving must keep that string valid for the same original finding.
+    assert app.selectbox(key=queue_key).options == original_labels
+    assert app.button(key=f"{field_prefix}:save").label == "Save again"
+    saved_json = serialize_brief_export(_workspace_payload(db_path))
+    app.text_area(key=f"{field_prefix}:note").set_value("A later draft for this finding.").run()
+
+    assert not app.exception
+    assert app.selectbox(key=queue_key).value == identity
+    assert app.text_area(key=f"{field_prefix}:note").value == "A later draft for this finding."
+    assert app.button(key=f"{field_prefix}:save").label == "Save changes"
+    assert serialize_brief_export(_workspace_payload(db_path)) == saved_json
+    app.button(key=f"{field_prefix}:save").click().run()
+
+    assert not app.exception
+    assert app.selectbox(key=queue_key).value == identity
+    assert app.selectbox(key=queue_key).options == original_labels
+    history = database.get_reviewer_decision_history(brief_id, db_path)
+    assert len(history) == 3
+    assert [(event.target_type, event.target_index) for event in history[1:]] == [identity, identity]
+    assert history[-1].note == "A later draft for this finding."
+
+
 def test_review_drafts_stay_with_their_finding_across_navigation_and_help(reviewed_app):
     app, db_path, brief_id = reviewed_app
     queue_key = f"review_queue:{brief_id}"

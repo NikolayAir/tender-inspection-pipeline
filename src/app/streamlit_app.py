@@ -450,10 +450,10 @@ def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
 
     def label(identity):
         finding = finding_map[identity]
-        current = latest.get(identity)
-        state = review_state_label(current.state) if current else "Unreviewed"
         value = finding.value if len(finding.value) <= 90 else finding.value[:87] + "…"
-        return f"{finding.kind} · {value} · {state}"
+        # Streamlit serialises the selected option as its formatted string.
+        # Keep labels stable after saves and distinct even when text is shortened.
+        return f"{finding.kind} {finding.target_index + 1} · {value}"
 
     with finding_column:
         selected = st.selectbox(
