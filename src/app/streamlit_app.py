@@ -641,7 +641,34 @@ def _remember_adhoc_field(field: str) -> None:
     draft = dict(st.session_state.get("adhoc_draft", {}))
     draft[field] = st.session_state[f"adhoc_{field}"]
     st.session_state["adhoc_draft"] = draft
-    st.session_state["adhoc_input_invalid"] = False
+    # A Generate click can arrive with field edits; its validation owns feedback.
+    if not st.session_state.get("generate_preview", False):
+        st.session_state["adhoc_input_invalid"] = False
+        st.session_state.pop("adhoc_error", None)
+
+
+def _generate_adhoc_preview() -> None:
+    """Generate only after an explicit click, before rendering its action state."""
+    inputs = {
+        "text": st.session_state.get("adhoc_text", ""),
+        "title": st.session_state.get("adhoc_title", ""),
+        "url": st.session_state.get("adhoc_url", ""),
+    }
+    st.session_state["adhoc_draft"] = inputs.copy()
+    error = adhoc_input_error(inputs["text"])
+    st.session_state["adhoc_input_invalid"] = bool(error)
+    st.session_state["adhoc_error"] = error
+    if error:
+        # Retain the last successful preview when a later submission is invalid.
+        return
+    document = build_document_from_text(
+        inputs["text"], source_url=inputs["url"].strip(),
+        default_title=inputs["title"].strip() or "Pasted public excerpt",
+    )
+    st.session_state["adhoc_preview"] = document, extract_brief(document)
+    # Keep submitted fields separate from the draft so later edits can mark the preview as out of date.
+    st.session_state["adhoc_preview_input"] = inputs.copy()
+    request_scroll("preview")
 
 
 def render_adhoc_view() -> None:
@@ -679,26 +706,28 @@ def render_adhoc_view() -> None:
             on_change=_remember_adhoc_field, args=("url",),
         )
         inputs = {"title": title, "url": source_url, "text": text}
-        submitted = st.button(
-            "Generate review brief", type="primary", icon=":material/play_arrow:", width="stretch",
+        has_preview = st.session_state.get("adhoc_preview") is not None
+        preview_current = (
+            has_preview and inputs == st.session_state.get("adhoc_preview_input")
+            and not st.session_state.get("adhoc_input_invalid", False)
         )
+        if preview_current:
+            generate_label, generate_icon = "Generate again", ":material/check_circle:"
+        elif has_preview:
+            generate_label, generate_icon = "Update review brief", ":material/refresh:"
+        else:
+            generate_label, generate_icon = "Generate review brief", ":material/play_arrow:"
+        st.button(
+            generate_label, icon=generate_icon,
+            type="secondary" if preview_current else "primary",
+            width="stretch", key="generate_preview", on_click=_generate_adhoc_preview,
+            help="Generate a new preview from the current input.",
+        )
+        if preview_current:
+            st.badge("Review brief generated", icon=":material/check:", color="green")
+        if error := st.session_state.get("adhoc_error"):
+            st.warning(error)
         st.caption("Draft and preview stay in this browser session. Decisions and JSON downloads are available for bundled samples.")
-        if submitted:
-            st.session_state["adhoc_draft"] = inputs
-            error = adhoc_input_error(text)
-            st.session_state["adhoc_input_invalid"] = bool(error)
-            if error:
-                # Retain the last successful preview when a later submission is invalid.
-                st.warning(error)
-            else:
-                document = build_document_from_text(
-                    text, source_url=source_url.strip(),
-                    default_title=title.strip() or "Pasted public excerpt",
-                )
-                st.session_state["adhoc_preview"] = (document, extract_brief(document))
-                # Keep submitted fields separate from the draft so later edits can mark the preview as out of date.
-                st.session_state["adhoc_preview_input"] = inputs
-                request_scroll("preview")
 
     with preview_column, st.container(key="preview_result"):
         preview = st.session_state.get("adhoc_preview")

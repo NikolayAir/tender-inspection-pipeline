@@ -41,11 +41,15 @@ Decisions belong to the specific brief being reviewed. If an explicit pipeline r
 2. Paste non-empty public, non-confidential text, up to 50,000 characters. A document title and source URL are optional; the URL is reference metadata and is not fetched. The first non-empty `TITLE:` line in the text takes precedence over the optional title field. Blank title lines are ignored; without either title, the preview uses **Pasted public excerpt**.
 3. Select **Generate review brief**. Inspect the result using **Findings**, **Evidence**, **Questions**, and **Source**. The preview appears beside the input when there is room, or below it in a compact workspace.
 
-The current draft and last generated preview remain available when opening help or switching workflows in the same session, including edits that have not yet been analysed. Editing a field keeps the draft without running extraction. **Generate review brief** updates the result; until then, a changed-input notice identifies the previous preview. If a new submission is invalid, that preview remains clearly labelled. Reloading the browser starts a new session and clears the draft and preview.
+After generation, a check mark and **Review brief generated** confirm that the preview matches the input. **Generate again** lets you repeat the action. When the excerpt, title or source URL differs from the input used for the preview, the button changes to **Update review brief**.
+
+The current draft and last generated preview remain available when opening help or switching workflows in the same session, including edits that have not yet been analysed. Editing a field keeps the draft without running extraction. **Update review brief** updates the result; until then, a changed-input notice identifies the previous preview. If a new submission is invalid, that preview remains clearly labelled. Reloading the browser starts a new session and clears the draft and preview.
 
 This path uses the same text cleaning and extraction as the bundled workflow. Pasted content is processed only in the current session; it is not written to SQLite or exported. The application does not scrape websites, parse PDFs, or call an external model or API.
 
 When no configured keywords or gap phrases match, the preview shows a manual-review notice. This notice is not counted as an information gap. Zero matches do not establish completeness; read the excerpt manually.
+
+![Input and session-only review preview side by side, using an illustrative excerpt](assets/tender-inspection-excerpt-preview.png)
 
 The bundled validation results do not establish extraction quality for pasted text. See [data and validation](data-and-validation.md) for the tested examples and limitations.
 

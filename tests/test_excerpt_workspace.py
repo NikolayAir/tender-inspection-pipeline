@@ -24,7 +24,51 @@ def excerpt_app(tmp_path, monkeypatch):
 
 def _generate(app, text=EXCERPT):
     app.text_area(key="adhoc_text").set_value(text)
-    next(button for button in app.button if button.label == "Generate review brief").click().run()
+    app.button(key="generate_preview").click().run()
+
+
+@pytest.mark.parametrize(
+    ("field", "revised"),
+    [("text", "Electrical installation works."), ("title", "Revised title"), ("url", "https://example.org/revised")],
+)
+def test_generation_action_returns_to_update_when_any_input_changes(excerpt_app, field, revised):
+    app, db_path, documents = excerpt_app
+    assert app.button(key="generate_preview").label == "Generate review brief"
+    assert app.button(key="generate_preview").proto.type == "primary"
+    _generate(app)
+    assert not app.exception
+    assert app.button(key="generate_preview").label == "Generate again"
+    assert app.button(key="generate_preview").proto.type == "secondary"
+    original = app.session_state["adhoc_preview"]
+    widget = app.text_area(key="adhoc_text") if field == "text" else app.text_input(key=f"adhoc_{field}")
+    previous = widget.value
+    widget.set_value(revised).run()
+
+    assert not app.exception
+    assert app.button(key="generate_preview").label == "Update review brief"
+    assert app.button(key="generate_preview").proto.type == "primary"
+    assert any("Input has changed" in item.value for item in app.info)
+    assert app.session_state["adhoc_preview"] == original
+    assert database.get_documents(db_path) == documents
+
+    widget = app.text_area(key="adhoc_text") if field == "text" else app.text_input(key=f"adhoc_{field}")
+    widget.set_value(previous).run()
+    assert app.button(key="generate_preview").label == "Generate again"
+    assert app.button(key="generate_preview").proto.type == "secondary"
+    assert app.session_state["adhoc_preview"] == original
+
+
+def test_generating_again_remains_an_explicit_session_only_action(excerpt_app):
+    app, db_path, documents = excerpt_app
+    _generate(app)
+    original = app.session_state["adhoc_preview"]
+    app.button(key="generate_preview").click().run()
+
+    assert not app.exception
+    assert app.button(key="generate_preview").label == "Generate again"
+    assert app.button(key="generate_preview").proto.type == "secondary"
+    assert app.session_state["adhoc_preview"] == original
+    assert database.get_documents(db_path) == documents
 
 
 def test_preview_never_renders_saved_decisions_or_writes_to_storage(excerpt_app):
@@ -74,6 +118,8 @@ def test_invalid_resubmission_keeps_the_previous_preview_explicit(excerpt_app):
     assert not app.exception
     assert any("Please paste" in message.value for message in app.warning)
     assert any("last generated preview" in message.value for message in app.info)
+    assert app.button(key="generate_preview").label == "Update review brief"
+    assert app.button(key="generate_preview").proto.type == "primary"
     assert not any(element.proto.unsafe_allow_javascript for element in app.get("html"))
     assert app.metric[0].value == "1"
     assert any(item.value == EXCERPT for item in app.text)

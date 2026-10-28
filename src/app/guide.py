@@ -39,7 +39,7 @@ def show_workflow_guide() -> None:
             "it does not open or download the page.\n"
             "3. Select **Generate review brief**. The preview contains separate views "
             "for findings, evidence, questions, and source text.\n"
-            "4. **Generate again after editing** to update the preview. Until then, "
+            "4. After editing, select **Update review brief**. Until then, "
             "the previous preview stays visible. Opening help or switching between "
             "Review workspace and Analyse a public excerpt keeps your draft and preview."
         )
