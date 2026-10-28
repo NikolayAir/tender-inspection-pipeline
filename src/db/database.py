@@ -48,6 +48,10 @@ from src.provenance import (
 DEFAULT_DB_PATH = Path("data") / "processed" / "tender_inspection.db"
 
 
+class InvalidStoredTimestampError(ValueError):
+    """A saved review timestamp cannot be read as a UTC datetime."""
+
+
 def connect(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     """Open a SQLite connection, creating the parent folder if needed."""
     path = Path(db_path)
@@ -645,10 +649,15 @@ def _inspection_brief_from_row(row: sqlite3.Row) -> InspectionBrief:
 
 def _stored_timestamp_as_utc(value: str) -> datetime:
     """Parse a stored timestamp, treating legacy SQLite timestamps as UTC."""
-    parsed = datetime.fromisoformat(value)
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError, OverflowError) as error:
+        # Mark date-parsing and UTC-conversion failures as corrupt stored data.
+        # Keep unrelated read errors outside this exception boundary.
+        raise InvalidStoredTimestampError("Saved review contains an invalid timestamp") from error
 
 
 def get_brief_for_document(

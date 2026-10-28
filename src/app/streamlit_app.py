@@ -541,7 +541,7 @@ def render_bundled_view() -> None:
             if saved:
                 # The write has committed; a later read error must still report that the decision was saved.
                 snapshot = database.get_document_review(document["id"])
-    except (JSONDecodeError, ValidationError):
+    except (JSONDecodeError, ValidationError, database.InvalidStoredTimestampError):
         logger.exception("Saved review data is invalid for document %s", document["id"])
         if saved:
             st.success("Reviewer decision saved.")

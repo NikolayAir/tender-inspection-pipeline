@@ -163,26 +163,35 @@ def _saved_records(db_path):
 
 
 @pytest.mark.parametrize(
-    ("column", "stored_value"),
+    ("table", "column", "stored_value"),
     [
-        ("evidence", "not-json"),
-        ("evidence", "null"),
-        ("evidence", '{"snippet": "A passage in the wrong container."}'),
-        ("evidence", "[7]"),
-        ("evidence", '[{"snippet": "A passage without its term or location."}]'),
-        ("risk_domains", '{"topic": "Fire safety"}'),
-        ("technical_scopes", "42"),
-        ("missing_info", "[null]"),
-        ("review_questions", '"Check the drawings."'),
+        ("briefs", "evidence", "not-json"),
+        ("briefs", "evidence", "null"),
+        ("briefs", "evidence", '{"snippet": "A passage in the wrong container."}'),
+        ("briefs", "evidence", "[7]"),
+        ("briefs", "evidence", '[{"snippet": "A passage without its term or location."}]'),
+        ("briefs", "risk_domains", '{"topic": "Fire safety"}'),
+        ("briefs", "technical_scopes", "42"),
+        ("briefs", "missing_info", "[null]"),
+        ("briefs", "review_questions", '"Check the drawings."'),
+        ("processing_runs", "processed_at", "not-a-date"),
+        ("reviewer_decisions", "decided_at", "not-a-date"),
+        ("processing_runs", "processed_at", b"not-text"),
+        ("reviewer_decisions", "decided_at", b"not-text"),
+        ("processing_runs", "processed_at", "0001-01-01T00:00:00+01:00"),
+        ("reviewer_decisions", "decided_at", "9999-12-31T23:59:59-01:00"),
     ],
     ids=[
         "invalid-json", "null-evidence", "evidence-object", "invalid-evidence-item",
         "incomplete-evidence-item", "invalid-focus-areas", "invalid-scopes",
         "invalid-gap-item", "invalid-questions",
+        "invalid-processing-time", "invalid-decision-time",
+        "processing-time-wrong-type", "decision-time-wrong-type",
+        "processing-time-outside-utc-range", "decision-time-outside-utc-range",
     ],
 )
 def test_malformed_saved_review_keeps_other_documents_usable_and_records_unchanged(
-    app_db, caplog, column: str, stored_value: str,
+    app_db, caplog, table: str, column: str, stored_value: str | bytes,
 ):
     good_document_id, original_json = _reviewed_sample(app_db)
     for sample in BUNDLED_SAMPLES[1:-1]:
@@ -197,7 +206,12 @@ def test_malformed_saved_review_keeps_other_documents_usable_and_records_unchang
     )
     # Deliberately damage only this temporary fixture after storing valid history.
     with closing(database.connect(app_db)) as conn, conn:
-        conn.execute(f"UPDATE briefs SET {column} = ? WHERE id = ?", (stored_value, bad_brief_id))
+        target = {
+            "briefs": "id = ?",
+            "processing_runs": "id = (SELECT processing_run_id FROM briefs WHERE id = ?)",
+            "reviewer_decisions": "brief_id = ?",
+        }[table]
+        conn.execute(f"UPDATE {table} SET {column} = ? WHERE {target}", (stored_value, bad_brief_id))
     before = _saved_records(app_db)
 
     app = AppTest.from_file(str(APP_PATH), default_timeout=20).run()
