@@ -3,7 +3,12 @@
 import streamlit as st
 
 from src.ai.risk_extract import NO_MATCH_NOTICE
-from src.app.review import brief_findings, information_gaps, latest_decisions
+from src.app.review import (
+    brief_findings,
+    escape_markdown,
+    information_gaps,
+    latest_decisions,
+)
 from src.exports import VersionedBriefExport
 
 _STATE_LABELS = {
@@ -17,7 +22,7 @@ def _items(values: list[str], empty: str) -> None:
     if values:
         with st.container(gap="small"):
             for value in values:
-                st.write(f"• {value}")
+                st.text(f"• {value}")
     else:
         st.caption(empty)
 
@@ -30,7 +35,7 @@ def show_export_preview(
     brief = payload.brief
     with st.container(key="export_preview_intro", gap="small"):
         st.caption("Saved data only. Unsaved decisions and notes are excluded.")
-        st.subheader(payload.document.title, anchor=False)
+        st.subheader(escape_markdown(payload.document.title), anchor=False)
         st.caption(
             f"Focus areas: {len(brief.risk_domains)} · "
             f"Information gaps: {len(information_gaps(brief))} · "
@@ -66,7 +71,7 @@ def show_export_preview(
             "For the current keyword rules, this is a fixed label, not an accuracy score."
         )
         with st.expander("Original generated summary"):
-            st.write(brief.summary)
+            st.text(brief.summary)
     with evidence, st.container(key="export_preview_evidence"):
         st.caption("These passages are included in the file. Locations refer to the cleaned excerpt and are approximate.")
         for index, snippet in enumerate(brief.evidence, start=1):
@@ -84,7 +89,7 @@ def show_export_preview(
             current = latest.get(finding.identity)
             with st.container(border=True):
                 st.caption(finding.kind)
-                st.write(finding.value)
+                st.text(finding.value)
                 st.write(_STATE_LABELS[current.state] if current else "Unreviewed")
                 if current:
                     st.text(current.note or "No note provided")
@@ -99,7 +104,7 @@ def show_export_preview(
                     for event in payload.reviewer_decisions:
                         identity = event.target_type, event.target_index
                         finding_label = labels.get(identity, f"{event.target_type}[{event.target_index}]")
-                        st.write(f"{_STATE_LABELS[event.state]} · {finding_label}")
+                        st.text(f"{_STATE_LABELS[event.state]} · {finding_label}")
                         st.caption(f"Event {event.id} · {event.decided_at:%Y-%m-%d %H:%M:%S} UTC")
                         st.text(event.note or "No note provided")
                         st.divider()
@@ -134,6 +139,8 @@ def render_export_actions(
     payload: VersionedBriefExport, json_text: str, filename: str,
 ) -> None:
     """Keep inspection outside the decision form and on its displayed snapshot."""
+    # Fragment reruns reuse the page's payload and canonical JSON. Reading storage
+    # here could show a different brief or history while the form still shows its draft.
     with st.container(horizontal=True, horizontal_alignment="right", gap="small"):
         if st.button(
             "Preview JSON", icon=":material/visibility:", type="tertiary",

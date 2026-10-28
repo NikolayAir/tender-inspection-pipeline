@@ -33,6 +33,7 @@ from src.app.review import (  # noqa: E402
     REVIEW_FILTERS,
     brief_findings,
     category_for_term,
+    escape_markdown,
     evidence_for_finding,
     filter_findings,
     information_gaps,
@@ -134,11 +135,13 @@ def reviewer_history_rows(
 
 
 def _bullets(items: list[str], empty_text: str) -> None:
-    """Render a list of strings as markdown bullets, or an italic empty note."""
+    """Keep source-derived values literal, or show an italic empty note."""
     if not items:
         st.markdown(f"*{empty_text}*")
         return
-    st.markdown("\n".join(f"- {item}" for item in items))
+    with st.container(gap="small"):
+        for item in items:
+            st.text(f"• {item}")
 
 
 def _select_brief_tab(label: str) -> None:
@@ -193,7 +196,7 @@ def render_brief_body(brief: InspectionBrief, *, persisted: bool = False) -> Non
         st.caption("Suggested follow-up questions for checking the full tender documentation.")
         if brief.review_questions:
             for index, question in enumerate(brief.review_questions, 1):
-                st.markdown(f"**{index:02d}** · {question}")
+                st.markdown(f"**{index:02d}** · {escape_markdown(question)}")
         else:
             st.write("No questions generated. Start by reading the source excerpt.")
 
@@ -239,7 +242,7 @@ def _render_reviewer_target(
 
     if show_finding:
         st.markdown("**Generated finding**")
-        st.write(generated_value)
+        st.text(generated_value)
 
     if current is None:
         st.write("**Current review status:**", "Unreviewed")
@@ -248,7 +251,8 @@ def _render_reviewer_target(
     else:
         st.write("**Current review status:**", review_state_label(current.state))
         if show_finding:
-            st.write("**Current reviewer note:**", current.note or "No note provided")
+            st.markdown("**Current reviewer note:**")
+            st.text(current.note or "No note provided")
 
     form_key = reviewer_widget_key(
         brief_id, target_type, target_index, "decision_form"
@@ -416,7 +420,7 @@ def render_reviewer_decisions(payload: VersionedBriefExport) -> None:
         source, decision = st.columns([1.15, 1], gap="large")
     with source, st.container(border=True, key="finding_evidence"):
         st.badge(finding.kind, color="gray")
-        st.subheader(finding.value, anchor=False)
+        st.subheader(escape_markdown(finding.value), anchor=False)
         st.markdown("**Supporting source evidence**")
         snippets = evidence_for_finding(payload.brief, finding)
         for snippet in snippets:
@@ -506,7 +510,7 @@ def render_bundled_view() -> None:
     with st.container(key="brief_header"):
         heading, actions = st.columns([1, 1], vertical_alignment="center")
         with heading:
-            st.subheader(document["title"], anchor=False)
+            st.subheader(escape_markdown(document["title"]), anchor=False)
             st.badge(
                 "Synthetic test sample" if document["source"] == "synthetic_sample" else "Public tender excerpt",
                 icon=":material/science:" if document["source"] == "synthetic_sample" else ":material/public:",
@@ -562,9 +566,9 @@ def render_source_evidence(document: dict, brief: InspectionBrief) -> None:
         render_evidence_inspector(brief, key=f"evidence_match:{document['id']}")
     with source:
         st.subheader("Source excerpt", anchor=False)
-        st.write(f"**Source:** {document['source']}")
+        st.markdown(f"**Source:** {escape_markdown(document['source'])}")
         if document.get("source_url"):
-            st.write(f"**Source URL:** {document['source_url']}")
+            st.markdown(f"**Source URL:** {escape_markdown(document['source_url'])}")
         elif document["source"] == "synthetic_sample":
             st.caption("Synthetic test data. This is not a real public tender.")
         with st.container(height=360, border=True, key="source_text"):
@@ -595,7 +599,7 @@ def render_run_details(payload: VersionedBriefExport) -> None:
         )
         st.caption("Decisions belong to this brief. Reprocessing creates a new brief with its own review history.")
         st.markdown("**Original generated summary**")
-        st.write(payload.brief.summary)
+        st.text(payload.brief.summary)
     with validation:
         st.subheader("Checks on bundled samples", anchor=False)
         render_validation_snapshot()
@@ -718,7 +722,7 @@ def render_adhoc_view() -> None:
         document, brief = preview
         st.subheader("Review brief preview", anchor=False)
         st.badge("Session only", icon=":material/visibility:", color="gray")
-        st.write(document.title)
+        st.text(document.title)
         if st.session_state.get("adhoc_input_invalid"):
             st.info("Your latest input was not analysed. Showing the last generated preview.")
         elif inputs != st.session_state.get("adhoc_preview_input"):
@@ -748,7 +752,7 @@ def render_adhoc_view() -> None:
             _bullets(brief.review_questions, "No questions generated. Read the source manually.")
         with source:
             if document.source_url:
-                st.write(f"**Source URL:** {document.source_url}")
+                st.markdown(f"**Source URL:** {escape_markdown(document.source_url)}")
             with st.container(border=True, height=360, key="preview_source"):
                 st.text(document.clean_text)
         st.caption("Keyword-based preview · Confidence label: Low (fixed) · Human review required. Sample checks do not show how accurate this preview is.")

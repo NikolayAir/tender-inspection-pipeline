@@ -140,7 +140,8 @@ def test_page_keeps_source_findings_export_and_decisions_on_one_result(
     assert payload["processing_run"]["source_content_fingerprint"] == source_content_fingerprint(
         source_text
     )
-    assert any(expected_url in item.value for item in app.markdown)
+    expected_url_label = r"**Source URL:** https\:\/\/example\.org\/" + ("new" if updated else "old")
+    assert any(item.value == expected_url_label for item in app.markdown)
     if not updated:
         assert downloads[-1] == original_json
 

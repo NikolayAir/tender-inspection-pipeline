@@ -34,6 +34,7 @@ class _ReviewerTargetStreamlit:
         self.toasts = []
         self.warnings = []
         self.writes = []
+        self.texts = []
         self.reruns = 0
 
     def markdown(self, *_args, **_kwargs):
@@ -41,6 +42,9 @@ class _ReviewerTargetStreamlit:
 
     def write(self, *args, **_kwargs):
         self.writes.append(args)
+
+    def text(self, value, **_kwargs):
+        self.texts.append(value)
 
     def caption(self, *_args, **_kwargs):
         return None
@@ -196,10 +200,7 @@ def test_reviewer_target_displays_current_state_and_note(monkeypatch):
     )
 
     assert ("**Current review status:**", "Accepted") in fake_st.writes
-    assert (
-        "**Current reviewer note:**",
-        "Drawings confirmed.",
-    ) in fake_st.writes
+    assert "Drawings confirmed." in fake_st.texts
     assert fake_st.reruns == 0
 
 

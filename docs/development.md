@@ -81,6 +81,7 @@ The test suite covers:
 | Focused workspace and session previews | [Review queues and source selection](../tests/test_review_workspace.py), [preview persistence and storage isolation](../tests/test_excerpt_workspace.py) |
 | Export contracts and stable output across runs | [Exports](../tests/test_exports.py), [reproducibility](../tests/test_reproducibility.py) |
 | Read-only JSON viewer and unfinished review forms | [Download preview](../tests/test_export_preview.py) |
+| Literal source formatting in saved and pasted reviews | [Source display and unchanged exports](../tests/test_literal_display.py) |
 
 These checks verify software behaviour. They do not establish statistical extraction accuracy or engineering correctness.
 
@@ -89,6 +90,8 @@ For UI changes, also inspect the app in a browser at desktop and phone widths, i
 UI presentation lives in `src/app/streamlit_app.py`, with pure finding and evidence helpers in `src/app/review.py`, the guide in `src/app/guide.py`, and one-shot reveal effects in `src/app/scroll.py` and `scroll.js`. Theme colours use `.streamlit/config.toml`; `styles.css` scopes layout refinements to named containers, and `navigation.css` gives the native sidebar opener its visible **Menu & samples** label. The reveal script is trusted local code and receives only fixed target selectors, never source text or metadata.
 
 `src/app/export_preview.py` renders the captured JSON payload in a read-only dialog. Its action fragment and the dialog use the payload and canonical JSON supplied by the workspace; they do not read the database, save decisions or rebuild a brief. Closing the dialog and downloading use Streamlit's no-rerun behaviour so unfinished form input remains available.
+
+Source-derived findings and summaries use plain text. Native headings and formatted labels escape Markdown so titles and finding text remain visible literally. For browser checks, include an excerpt containing a Markdown image and formatting markers; confirm that its text stays visible in the overview, finding heading and JSON viewer without creating an image or changing the source or export.
 
 ## Continuous integration
 

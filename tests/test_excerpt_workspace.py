@@ -142,7 +142,7 @@ def test_preview_keeps_a_readable_title_when_the_excerpt_title_line_is_blank(exc
 
     assert not app.exception
     expected = optional_title or "Pasted public excerpt"
-    assert any(item.value == expected for item in app.markdown)
+    assert any(item.value == expected for item in app.text)
     document, _brief = app.session_state["adhoc_preview"]
     assert document.title == expected
     assert document.raw_text == raw_text
