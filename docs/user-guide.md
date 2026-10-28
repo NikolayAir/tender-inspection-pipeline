@@ -63,6 +63,8 @@ The sidebar labels the method **Keyword-based extraction**. The guide explains t
 
 **Start reviewing** brings the review controls into view. A successful pasted analysis reveals the preview when it is outside the useful viewport, including below the input on a narrow screen. Saving a decision, submitting invalid input, and ordinary reruns retain the current position. The reveal respects reduced-motion preferences.
 
+![In-app How it works guide with the short review walkthrough](assets/tender-inspection-how-it-works.png)
+
 When the sidebar is hidden, **Menu & samples** remains visible in the header. It opens both workflow navigation and the document selector, including on a narrow screen.
 
 ![Clearly labelled Menu and samples control when the sidebar is hidden](assets/tender-inspection-navigation.png)

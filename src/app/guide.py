@@ -30,6 +30,7 @@ def show_workflow_guide() -> None:
             "Unsaved decisions and notes are not included."
         )
         st.info("Each saved decision adds a history entry and keeps the generated finding unchanged. Earlier decisions and notes remain available under Decision history.", icon=":material/history:")
+        st.caption("When you return from Analyse a public excerpt, the app restores your document, workspace tab, status filter and finding. Unsaved choices and notes stay in this browser session; reloading the tab clears them.")
         st.caption("Source snippets are passages quoted from the input. Evidence & source shows them beside the original excerpt. Run details explains how the saved brief was produced and shows the checks on the bundled samples.")
     with pasted:
         st.subheader("Try your own public excerpt", anchor=False)
@@ -49,7 +50,7 @@ def show_workflow_guide() -> None:
     with method:
         st.subheader("How the keyword rules work", anchor=False)
         st.markdown(
-            "**01 · Clean up the text**\n\nRemove repeated spaces and standardise line breaks.\n\n"
+            "**01 · Clean up the text**\n\nStandardise line breaks and trim whitespace at line ends and around the excerpt.\n\n"
             "**02 · Look for keywords and phrases**\n\nCheck predefined keywords, such as "
             "those for fire safety or ventilation, and phrases about missing information. "
             "Matches ignore capital letters. A keyword can also match part of a longer word.\n\n"
