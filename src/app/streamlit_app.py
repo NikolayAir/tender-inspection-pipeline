@@ -563,7 +563,12 @@ def render_bundled_view() -> None:
             if saved:
                 # The write has committed; a later read error must still report that the decision was saved.
                 snapshot = database.get_document_review(document["id"])
-    except (JSONDecodeError, ValidationError, database.InvalidStoredTimestampError):
+    except (
+        JSONDecodeError, UnicodeDecodeError, ValidationError,
+        database.InvalidStoredTimestampError,
+    ):
+        # SQLite can return a BLOB in a JSON column. Invalid bytes fail decoding
+        # before JSON syntax or model validation can report the damaged value.
         logger.exception("Saved review data is invalid for document %s", document["id"])
         if saved:
             st.success("Reviewer decision saved.")

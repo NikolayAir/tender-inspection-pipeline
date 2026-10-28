@@ -66,7 +66,7 @@ Recovery checks completeness before extraction and again inside the write transa
 
 If recovery fails, the interface keeps readable saved documents, reviews, and downloads available, shows a recovery warning, and retries on refresh. A successful retry retains the selected document. An empty database, unavailable storage, and an unreadable selected review receive separate messages.
 
-Malformed JSON, unreadable processing or decision timestamps, and saved values that fail model validation receive a distinct message when the selected review is opened. Timestamp parsing failures are classified at the storage boundary, so the interface can explain invalid saved data without hiding unrelated programming errors. The interface logs the cause and keeps other documents selectable. The failed read does not repair, replace or delete saved records; completed results remain outside automatic reprocessing.
+The interface reports invalid saved data when JSON cannot be decoded or parsed, a processing or decision timestamp cannot be read, or saved values fail model validation. Timestamp parsing failures are classified at the storage boundary, so the interface can explain invalid saved data without hiding unrelated programming errors. The interface logs the cause and keeps other documents selectable. The failed read does not repair, replace or delete saved records; completed results remain outside automatic reprocessing.
 
 ### Consistent review reads
 
