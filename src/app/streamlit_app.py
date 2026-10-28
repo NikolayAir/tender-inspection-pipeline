@@ -107,7 +107,10 @@ def _remember_review_navigation() -> None:
         st.session_state["review_navigation"] = {
             key: value for key, value in st.session_state.items()
             if key in {"bundled_document", "brief_tabs"}
-            or key.startswith(("review_filter:", "review_queue:", "evidence_match:"))
+            or (
+                isinstance(key, str)
+                and key.startswith(("review_filter:", "review_queue:", "evidence_match:"))
+            )
         }
     else:
         for key, value in st.session_state.get("review_navigation", {}).items():
