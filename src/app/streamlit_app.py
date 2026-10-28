@@ -99,6 +99,21 @@ def reviewer_widget_key(
     return f"reviewer:{brief_id}:{target_type}:{target_index}:{field}"
 
 
+def _remember_review_navigation() -> None:
+    """Restore reading controls after their hidden widgets leave session state."""
+    # Streamlit removes widget keys when their page is hidden. Keep a separate
+    # copy and restore it before the review widgets are recreated.
+    if st.session_state["workspace_nav"] == "Analyse a public excerpt":
+        st.session_state["review_navigation"] = {
+            key: value for key, value in st.session_state.items()
+            if key in {"bundled_document", "brief_tabs"}
+            or key.startswith(("review_filter:", "review_queue:", "evidence_match:"))
+        }
+    else:
+        for key, value in st.session_state.get("review_navigation", {}).items():
+            st.session_state[key] = value
+
+
 def _remember_reviewer_draft(
     brief_id: int, target_type: ReviewTargetType, target_index: int,
 ) -> None:
@@ -526,12 +541,19 @@ def render_bundled_view() -> None:
         return
 
     labels = {f"#{d['id']} - {d['title']}": d for d in documents}
+    if st.session_state.get("bundled_document") not in labels:
+        remembered_id = st.session_state.get("review_document_id")
+        st.session_state["bundled_document"] = next(
+            (label for label, item in labels.items() if item["id"] == remembered_id),
+            next(iter(labels)),
+        )
     with st.sidebar:
         st.divider()
         st.caption("BUNDLED SAMPLES")
         choice = st.selectbox("Select a document", list(labels.keys()), key="bundled_document")
         st.caption("Saved results and reviewer decisions are retained between visits.")
     document = labels[choice]
+    st.session_state["review_document_id"] = document["id"]
 
     saved = False
     try:
@@ -864,6 +886,7 @@ def render() -> None:
             ["Review workspace", "Analyse a public excerpt"],
             key="workspace_nav",
             label_visibility="collapsed",
+            on_change=_remember_review_navigation,
         )
 
     with st.container(horizontal=True, horizontal_alignment="distribute", vertical_alignment="center", key="page_header"):

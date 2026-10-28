@@ -110,6 +110,72 @@ def test_review_drafts_stay_with_their_finding_across_navigation_and_help(review
     assert serialize_brief_export(_workspace_payload(db_path)) == original_json
 
 
+@pytest.mark.parametrize("identity", [("risk_domain", 1), ("missing_info", 1)])
+def test_returning_to_review_restores_document_tab_filter_and_original_finding(
+    reviewed_app, tmp_path, identity,
+):
+    app, db_path, brief_id = reviewed_app
+    document_label = app.selectbox(key="bundled_document").value
+    original_payload = _workspace_payload(db_path)
+    original_json = serialize_brief_export(original_payload)
+    target_type, target_index = identity
+    field_prefix = f"reviewer:{brief_id}:{target_type}:{target_index}"
+    app.selectbox(key=f"review_filter:{brief_id}").select("Unreviewed").run()
+    app.selectbox(key=f"review_queue:{brief_id}").select(identity).run()
+    app.selectbox(key=f"{field_prefix}:state").select("needs_follow_up").run()
+    app.text_area(key=f"{field_prefix}:note").set_value("Draft for the finding I left open.").run()
+    snippet_index = len(original_payload.brief.evidence) - 1
+    app.selectbox(key=f"evidence_match:{original_payload.document.id}").select(snippet_index).run()
+
+    # AppTest has no interactive tab API; supply the browser's selected tab.
+    app.session_state["brief_tabs"] = "Review findings"
+    app.radio(key="workspace_nav").set_value("Analyse a public excerpt").run()
+    # A new document changes the default ordering while the review is hidden.
+    sample = tmp_path / "another.txt"
+    sample.write_text("# SOURCE: synthetic_sample\nTITLE: Another sample\nFire safety works.\n")
+    run_pipeline(sample, db_path)
+    app.text_area(key="adhoc_text").set_value("Unsubmitted public excerpt draft.").run()
+    app.radio(key="workspace_nav").set_value("Review workspace").run()
+
+    assert not app.exception
+    assert app.selectbox(key="bundled_document").value == document_label
+    assert app.session_state["brief_tabs"] == "Review findings"
+    assert app.selectbox(key=f"review_filter:{brief_id}").value == "Unreviewed"
+    assert app.selectbox(key=f"review_queue:{brief_id}").value == identity
+    assert app.selectbox(key=f"evidence_match:{original_payload.document.id}").value == snippet_index
+    assert app.selectbox(key=f"{field_prefix}:state").value == "needs_follow_up"
+    assert app.text_area(key=f"{field_prefix}:note").value == "Draft for the finding I left open."
+    assert app.session_state["adhoc_draft"]["text"] == "Unsubmitted public excerpt draft."
+    retained = database.get_latest_brief_export(original_payload.document.id, db_path)
+    assert retained is not None
+    assert serialize_brief_export(retained) == original_json
+
+    app.button(key=f"{field_prefix}:save").click().run()
+    assert not app.exception
+    history = database.get_reviewer_decision_history(brief_id, db_path)
+    assert len(history) == 2
+    assert (history[-1].target_type, history[-1].target_index) == identity
+    assert history[-1].note == "Draft for the finding I left open."
+
+
+def test_returning_to_an_empty_review_filter_keeps_its_context_without_writing(reviewed_app):
+    app, db_path, brief_id = reviewed_app
+    document_label = app.selectbox(key="bundled_document").value
+    original_json = serialize_brief_export(_workspace_payload(db_path))
+    app.selectbox(key=f"review_filter:{brief_id}").select("Rejected").run()
+    app.session_state["brief_tabs"] = "Review findings"
+    app.radio(key="workspace_nav").set_value("Analyse a public excerpt").run()
+    app.radio(key="workspace_nav").set_value("Review workspace").run()
+
+    assert not app.exception
+    assert app.selectbox(key="bundled_document").value == document_label
+    assert app.session_state["brief_tabs"] == "Review findings"
+    assert app.selectbox(key=f"review_filter:{brief_id}").value == "Rejected"
+    assert not app.text_area
+    assert any("No findings match" in message.value for message in app.info)
+    assert serialize_brief_export(_workspace_payload(db_path)) == original_json
+
+
 def test_failed_save_of_unchanged_fields_does_not_show_a_success_state(reviewed_app, monkeypatch):
     app, db_path, brief_id = reviewed_app
     save_key = f"reviewer:{brief_id}:risk_domain:0:save"
@@ -138,17 +204,22 @@ def test_failed_save_of_unchanged_fields_does_not_show_a_success_state(reviewed_
 
 def test_review_draft_is_not_transferred_to_a_reprocessed_brief(reviewed_app):
     app, db_path, old_brief_id = reviewed_app
-    app.text_area(key=f"reviewer:{old_brief_id}:risk_domain:0:note").set_value("Draft for the older brief only.").run()
+    document_label = app.selectbox(key="bundled_document").value
+    app.selectbox(key=f"review_queue:{old_brief_id}").select(("risk_domain", 1)).run()
+    app.text_area(key=f"reviewer:{old_brief_id}:risk_domain:1:note").set_value("Draft for the older brief only.").run()
+    app.radio(key="workspace_nav").set_value("Analyse a public excerpt").run()
     _, new_brief_id = run_pipeline(BUNDLED_SAMPLES[0], db_path)
-    app.run()
+    app.radio(key="workspace_nav").set_value("Review workspace").run()
 
     assert not app.exception
     assert new_brief_id != old_brief_id
+    assert app.selectbox(key="bundled_document").value == document_label
+    assert app.selectbox(key=f"review_queue:{new_brief_id}").value == ("risk_domain", 0)
     assert app.text_area(key=f"reviewer:{new_brief_id}:risk_domain:0:note").value == ""
     assert app.button(key=f"reviewer:{new_brief_id}:risk_domain:0:save").label == "Save decision"
     assert database.get_reviewer_decision_history(new_brief_id, db_path) == []
     assert len(database.get_reviewer_decision_history(old_brief_id, db_path)) == 1
-    assert app.session_state[f"reviewer:{old_brief_id}:risk_domain:0:draft"]["note"] == "Draft for the older brief only."
+    assert app.session_state[f"reviewer:{old_brief_id}:risk_domain:1:draft"]["note"] == "Draft for the older brief only."
 
 
 def test_successful_save_is_not_reported_as_failed_when_refreshing_the_review_fails(reviewed_app, monkeypatch):

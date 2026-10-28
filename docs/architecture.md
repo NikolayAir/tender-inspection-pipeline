@@ -76,6 +76,8 @@ The read transaction ends before rendering. A page may finish with the earlier r
 
 Review controls use a separate fragment, so editing fields or moving between findings retains the displayed snapshot. Draft choices and notes are kept in the session under the original brief, target type and target index. Only the save button queues a submission. A full rerun reads the current brief before writing; a request for an earlier brief is rejected. After a successful write, another consistent read supplies the updated review and export. If that read fails, the interface reports that the decision was saved while explaining that the review is unavailable.
 
+Switching to pasted excerpts retains the selected document, workspace tab, filter, finding and source-snippet selection in session state. Returning restores those controls without saving a decision. Filter and finding keys retain the original brief identifier, so a newly processed brief starts with its own queue and drafts. Restored controls are checked against the available documents and findings; this navigation context lasts only for the current browser session.
+
 ## Versioned JSON export
 
 [`src/exports.py`](../src/exports.py) defines the export models and deterministic serialisation. The interface downloads current schema `1.1.0`. Schema `1.0.0` remains available for explicit compatibility serialisation without reviewer-decision history.
