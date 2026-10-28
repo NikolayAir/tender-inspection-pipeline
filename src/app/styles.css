@@ -149,6 +149,21 @@
     display: none; /* Keep the script-only scroll helper out of the visible layout. */
 }
 
+/* Give finding navigation room before the source and decision panels stack. */
+@container tender-workspace (max-width: 1000px) {
+    .st-key-review_controls [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* Equal columns that can shrink below their contents' natural width. */
+    }
+    .st-key-review_controls [data-testid="stColumn"]:nth-child(-n+2) {
+        grid-column: 1 / -1; /* Each selector spans the full grid; the buttons share the next row. */
+    }
+    .st-key-review_controls [data-testid="stColumn"] {
+        width: 100%;
+        min-width: 0; /* Allow the column to shrink instead of forcing the page wider. */
+    }
+}
+
 /* The sidebar also consumes width. Stack panels when the workspace is narrow,
    including tablet and small desktop windows, rather than only on phones. */
 @container tender-workspace (max-width: 760px) {
@@ -167,18 +182,16 @@
         gap: 0.75rem;
     }
     .st-key-page_header h1 { font-size: 1.65rem; }
-    .st-key-brief_metrics [data-testid="stHorizontalBlock"],
-    .st-key-review_controls [data-testid="stHorizontalBlock"] {
+    .st-key-brief_metrics [data-testid="stHorizontalBlock"] {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr)); /* Two equal columns, allowed to shrink below their contents' natural width. */
     }
-    .st-key-review_controls [data-testid="stColumn"]:nth-child(-n+2) { grid-column: 1 / -1; }
     .st-key-preview_metrics [data-testid="stHorizontalBlock"] {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr)); /* Keep the three preview metrics together without a minimum content width. */
         gap: 0.5rem;
     }
-    :is(.st-key-brief_metrics, .st-key-review_controls, .st-key-preview_metrics) [data-testid="stColumn"] {
+    :is(.st-key-brief_metrics, .st-key-preview_metrics) [data-testid="stColumn"] {
         width: 100%;
         min-width: 0;
     }
