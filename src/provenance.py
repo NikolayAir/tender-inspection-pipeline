@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from src.models import ProcessingRun, TenderDocument
 
 EXTRACTOR_NAME = "deterministic_keyword_baseline"
-EXTRACTOR_VERSION = "1.0.0"
+EXTRACTOR_VERSION = "1.0.1"
 BRIEF_SCHEMA_VERSION = "1.0.0"
 
 LEGACY_EXTRACTOR_NAME = "legacy_unversioned"

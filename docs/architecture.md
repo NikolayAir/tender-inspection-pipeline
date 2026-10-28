@@ -23,9 +23,9 @@ The pasted-text path constructs an in-memory document and reuses normalisation, 
 
 The extractor scans text case-insensitively for declared keyword substrings and maps them to technical domains. It returns a neutral summary, technical scopes, possible review focus areas, information gaps, suggested questions, and evidence. All current extraction results set `confidence` to `low` and `human_review_required` to `true`.
 
-Each detected domain has one evidence snippet. Selection prefers a matching non-title line and falls back to the title when needed. Locations are approximate, one-based lines in the normalised document, not page, section, paragraph, or drawing references.
+Each detected domain has one evidence snippet. The extractor selects the first matching keyword in taxonomy order, then uses a non-title line containing that keyword when available. Otherwise it uses the title. Locations are approximate, one-based lines in the normalised document, not page, section, paragraph, or drawing references.
 
-Information-gap detection matches declared English phrases after flattening whitespace. Its evidence is labelled `source text` rather than assigned a line number. When neither a domain nor an information gap is detected, the brief includes a manual-review message.
+Information-gap detection matches declared English phrases after flattening whitespace. For each phrase, it records the first matching sentence that has not already been reported. Its evidence is labelled `source text` rather than assigned a line number. When neither a domain nor an information gap is detected, the brief includes a manual-review message.
 
 Rules do not interpret context, and the taxonomy has limited French construction terminology. [Data and validation](data-and-validation.md) describes the examples and known gaps. Shared model definitions are in [`src/models.py`](../src/models.py).
 
@@ -59,6 +59,8 @@ Atomicity applies per sample: an earlier successful sample remains saved if proc
 Automatic initialisation checks each bundled sample by `(source, title)`. A sample is complete when its stored document has a brief linked to a processing run for that same document, including restored legacy provenance. Unrelated documents do not count towards completeness.
 
 Completed samples are retained even if the bundled source file or extractor version has changed. Once all samples are complete, repeated initialisation adds no records. Refreshing a completed result requires explicit pipeline execution.
+
+Extractor `1.0.1` corrects the generated summary for excerpts with no keyword or information-gap phrase matches. The manual-review notice is excluded from its information-gap count but remains a `missing_info` review target at its original index. Matching rules and the brief and export schemas are unchanged. Earlier briefs retain their original summaries and provenance; the correction applies to newly generated briefs.
 
 Recovery checks completeness before extraction and again inside the write transaction. If another session has completed the sample in the meantime, the later attempt skips the write. Extraction can therefore complete without storing a redundant result. Standalone completeness lookups use read connections without reserving write access.
 

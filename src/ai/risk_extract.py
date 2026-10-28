@@ -130,13 +130,15 @@ def extract_brief(document: TenderDocument) -> InspectionBrief:
 
     missing_info, missing_evidence = _scan_missing_info(text)
     evidence.extend(missing_evidence)
+    # Count matches before adding the compatibility notice as a review target.
+    information_gap_count = len(missing_info)
     if not detected and not missing_info:
         missing_info.append(NO_MATCH_NOTICE)
 
     summary = (
         f'For "{document.title}", the rule-based extractor flagged '
         f"{len(detected)} possible technical review focus area(s) and "
-        f"{len(missing_info)} explicit information gap(s). "
+        f"{information_gap_count} explicit information gap(s). "
         "The output is derived from a transparent rule-based "
         "domain-classification baseline, not from an LLM, "
         "and is intended for human technical review only."

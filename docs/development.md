@@ -74,7 +74,7 @@ The test suite covers:
 
 | Area | Tests |
 | --- | --- |
-| Extraction, evidence, and qualitative regression | [Smoke tests](../tests/test_smoke.py), [validation](../tests/test_validation.py) |
+| Extraction, evidence, and qualitative regression | [Smoke tests](../tests/test_smoke.py), [summary counts and saved history](../tests/test_summary_counts.py), [validation](../tests/test_validation.py) |
 | Processing provenance and legacy restoration | [Provenance](../tests/test_provenance.py) |
 | Atomic writes, recovery, and database access | [Transactions](../tests/test_pipeline_transactions.py), [sample recovery](../tests/test_sample_recovery.py), [connections](../tests/test_database_connections.py) |
 | Reviewer decisions and interface behaviour | [Decision history](../tests/test_reviewer_decisions.py), [reviewer UI](../tests/test_reviewer_ui.py), [recovery UI](../tests/test_sample_recovery_ui.py), [review snapshots](../tests/test_review_snapshot.py) |

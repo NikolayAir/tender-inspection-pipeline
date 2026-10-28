@@ -119,6 +119,8 @@ def test_unmatched_saved_brief_has_a_manual_notice_without_an_invented_gap_or_qu
 
     assert not app.exception
     assert any("Focus areas: 0 · Information gaps: 0 · Saved history entries: 0" == caption.value for caption in app.caption)
+    assert "0 explicit information gap(s)." in payload.brief.summary
+    assert any(item.value == payload.brief.summary for item in app.text)
     assert any(message.value == NO_MATCH_NOTICE for message in app.info)
     assert any("No supporting source passages" in message.value for message in app.info)
     assert any(text.value == "Unreviewed" for text in app.markdown)

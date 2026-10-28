@@ -97,16 +97,17 @@ class StoredReviewerDecision(ReviewerDecision):
 
 
 class EvidenceSnippet(BaseModel):
-    """A short piece of source text supporting a detected review domain.
+    """A source passage supporting a keyword or information-gap phrase match.
 
-    Evidence is what ties a finding back to the source document, which is the
-    core value of the product. In the current rule-based baseline, evidence
-    comes from the rule-based keyword-to-domain extraction step.
+    The matched term and approximate location explain why the passage was
+    included. A no-match manual-review notice has no supporting passage.
     """
 
     snippet: str = Field(description="Short quoted text from the source.")
     matched_term: str = Field(description="Keyword or phrase that triggered the match.")
-    location: str = Field(description="Approximate location, e.g. 'line 12'.")
+    location: str = Field(
+        description="Approximate location in the normalised excerpt, e.g. 'line 12' or 'source text'."
+    )
 
 
 class InspectionBrief(BaseModel):
@@ -125,7 +126,11 @@ class InspectionBrief(BaseModel):
         description="Potential technical review domains for reviewer follow-up.",
     )
     missing_info: list[str] = Field(
-        default_factory=list, description="Information gaps noticed in the source."
+        default_factory=list,
+        description=(
+            "Sentences matching configured information-gap phrases. For compatibility, "
+            "this collection also holds the manual-review notice when no topic or gap matches."
+        ),
     )
     review_questions: list[str] = Field(
         default_factory=list, description="Suggested questions for the reviewer."
