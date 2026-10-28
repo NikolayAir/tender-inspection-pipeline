@@ -31,6 +31,7 @@ from src.app.export_preview import render_export_actions  # noqa: E402
 from src.app.guide import show_workflow_guide  # noqa: E402
 from src.app.review import (  # noqa: E402
     REVIEW_FILTERS,
+    REVIEW_STATE_OPTIONS,
     brief_findings,
     category_for_term,
     escape_markdown,
@@ -38,6 +39,7 @@ from src.app.review import (  # noqa: E402
     filter_findings,
     information_gaps,
     latest_decisions,
+    review_state_label,
 )
 from src.app.scroll import render_pending_scroll, request_scroll  # noqa: E402
 from src.collect.sample_loader import build_document_from_text  # noqa: E402
@@ -46,7 +48,6 @@ from src.exports import VersionedBriefExport, serialize_brief_export  # noqa: E4
 from src.models import (  # noqa: E402
     InspectionBrief,
     ReviewerDecision,
-    ReviewState,
     ReviewTargetType,
     StoredReviewerDecision,
 )
@@ -62,17 +63,6 @@ APP_TITLE = "Tender-to-Inspection Brief"
 
 # Upper bound on pasted text, to keep the in-session preview responsive.
 MAX_ADHOC_CHARS = 50_000
-REVIEW_STATE_OPTIONS: tuple[ReviewState, ...] = (
-    "accepted",
-    "rejected",
-    "needs_follow_up",
-)
-REVIEW_STATE_LABELS: dict[ReviewState | None, str] = {
-    None: "Select a decision",
-    "accepted": "Accepted",
-    "rejected": "Rejected",
-    "needs_follow_up": "Needs follow-up",
-}
 
 
 def adhoc_input_error(text: str, max_chars: int = MAX_ADHOC_CHARS) -> str | None:
@@ -104,11 +94,6 @@ def reviewer_widget_key(
 ) -> str:
     """Return a stable Streamlit key for one persisted review target."""
     return f"reviewer:{brief_id}:{target_type}:{target_index}:{field}"
-
-
-def review_state_label(state: ReviewState | None) -> str:
-    """Return the user-facing label for a stored or unselected review state."""
-    return REVIEW_STATE_LABELS[state]
 
 
 def reviewer_history_rows(

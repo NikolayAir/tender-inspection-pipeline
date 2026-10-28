@@ -8,14 +8,9 @@ from src.app.review import (
     escape_markdown,
     information_gaps,
     latest_decisions,
+    review_state_label,
 )
 from src.exports import VersionedBriefExport
-
-_STATE_LABELS = {
-    "accepted": "Accepted",
-    "rejected": "Rejected",
-    "needs_follow_up": "Needs follow-up",
-}
 
 
 def _items(values: list[str], empty: str) -> None:
@@ -90,7 +85,7 @@ def show_export_preview(
             with st.container(border=True):
                 st.caption(finding.kind)
                 st.text(finding.value)
-                st.write(_STATE_LABELS[current.state] if current else "Unreviewed")
+                st.write(review_state_label(current.state) if current else "Unreviewed")
                 if current:
                     st.text(current.note or "No note provided")
         if not findings:
@@ -104,7 +99,7 @@ def show_export_preview(
                     for event in payload.reviewer_decisions:
                         identity = event.target_type, event.target_index
                         finding_label = labels.get(identity, f"{event.target_type}[{event.target_index}]")
-                        st.text(f"{_STATE_LABELS[event.state]} · {finding_label}")
+                        st.text(f"{review_state_label(event.state)} · {finding_label}")
                         st.caption(f"Event {event.id} · {event.decided_at:%Y-%m-%d %H:%M:%S} UTC")
                         st.text(event.note or "No note provided")
                         st.divider()

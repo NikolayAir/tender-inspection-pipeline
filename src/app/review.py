@@ -10,19 +10,40 @@ from src.exports import VersionedBriefExport
 from src.models import (
     EvidenceSnippet,
     InspectionBrief,
+    ReviewState,
     ReviewTargetType,
     StoredReviewerDecision,
 )
 
+REVIEW_STATE_OPTIONS: tuple[ReviewState, ...] = (
+    "accepted",
+    "rejected",
+    "needs_follow_up",
+)
+REVIEW_STATE_LABELS: dict[ReviewState | None, str] = {
+    None: "Select a decision",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "needs_follow_up": "Needs follow-up",
+}
+
 REVIEW_FILTERS = {
     "All findings": None,
     "Unreviewed": "unreviewed",
-    "Needs follow-up": "needs_follow_up",
-    "Accepted": "accepted",
-    "Rejected": "rejected",
+    REVIEW_STATE_LABELS["needs_follow_up"]: "needs_follow_up",
+    REVIEW_STATE_LABELS["accepted"]: "accepted",
+    REVIEW_STATE_LABELS["rejected"]: "rejected",
 }
 
 _MARKDOWN_ESCAPES = str.maketrans({character: f"\\{character}" for character in punctuation})
+
+
+def review_state_label(state: ReviewState | None) -> str:
+    """Label a saved state or the unselected form option.
+
+    Callers display a finding with no saved event as Unreviewed instead.
+    """
+    return REVIEW_STATE_LABELS[state]
 
 
 def escape_markdown(value: str) -> str:
