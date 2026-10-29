@@ -500,7 +500,7 @@ def insert_reviewer_decision(
     """Append one validated reviewer-decision event and return its id."""
     decided_at_utc = decision.decided_at.astimezone(timezone.utc).isoformat()
 
-    with connect(db_path) as conn:
+    with closing(connect(db_path)) as conn, conn:
         brief_row = conn.execute(
             """
             SELECT risk_domains, missing_info
@@ -625,7 +625,7 @@ def get_latest_reviewer_decisions(
 
 def get_documents(db_path: Path | str = DEFAULT_DB_PATH) -> list[dict]:
     """Return all documents as dictionaries, newest first."""
-    with connect(db_path) as conn:
+    with closing(connect(db_path)) as conn, conn:
         rows = conn.execute(
             "SELECT * FROM documents ORDER BY id DESC"
         ).fetchall()
@@ -665,7 +665,7 @@ def get_brief_for_document(
     db_path: Path | str = DEFAULT_DB_PATH,
 ) -> InspectionBrief | None:
     """Return the most recently persisted brief for a document."""
-    with connect(db_path) as conn:
+    with closing(connect(db_path)) as conn, conn:
         row = conn.execute(
             """
             SELECT b.*
