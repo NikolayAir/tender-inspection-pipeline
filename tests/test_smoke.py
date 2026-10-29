@@ -8,9 +8,11 @@ full pipeline against a temporary database (the real
 from __future__ import annotations
 
 import importlib
-from types import SimpleNamespace
+from pathlib import Path
 
 import pytest
+from streamlit.testing.v1 import AppTest
+from streamlit.testing.v1.element_tree import Tab
 
 import src.app.streamlit_app as streamlit_app
 from src.ai.risk_extract import MISSING_INFO_PHRASES, extract_brief
@@ -46,171 +48,45 @@ def test_brief_export_filename_is_deterministic():
     assert brief_export_filename(17) == "inspection-brief-document-17.json"
 
 
-def test_bundled_view_shows_export_download_before_brief_body(monkeypatch):
-    """The persisted JSON action is visible before the long brief content."""
+def test_bundled_view_shows_export_download_before_brief_body(tmp_path, monkeypatch):
+    """The persisted JSON action remains above the separate review panels."""
+    db_path = tmp_path / "app.db"
+    connect = database.connect
+    monkeypatch.setattr(database, "connect", lambda *_args, **_kwargs: connect(db_path))
     events = []
 
-    class FakeExpander:
-        def __enter__(self):
-            return self
+    def capture_download(payload):
+        events.append(("download", payload))
+        return "{}"
 
-        def __exit__(self, exc_type, exc_value, traceback):
-            return False
+    monkeypatch.setattr("src.exports.serialize_brief_export", capture_download)
+    app_path = Path(streamlit_app.__file__)
+    app = AppTest.from_file(str(app_path), default_timeout=20).run()
 
-    class FakeStreamlit:
-        def selectbox(self, _label, options, **_kwargs):
-            return options[0]
-
-        def info(self, *_args, **_kwargs):
-            return None
-
-        def subheader(self, *_args, **_kwargs):
-            return None
-
-        def download_button(self, label, **kwargs):
-            events.append(
-                (
-                    "download_button",
-                    {
-                        "label": label,
-                        **kwargs,
-                    },
-                )
-            )
-            return False
-
-        def expander(self, *_args, **_kwargs):
-            return FakeExpander()
-
-        def write(self, *_args, **_kwargs):
-            return None
-
-        def text(self, *_args, **_kwargs):
-            return None
-
-        def caption(self, *_args, **_kwargs):
-            return None
-
-        def dataframe(self, *_args, **_kwargs):
-            return None
-
-    document = {
-        "id": 7,
-        "source": "synthetic_sample",
-        "source_url": None,
-        "title": "Test bundled document",
-        "clean_text": "Test source text",
-    }
-    brief = object()
-    export_payload = SimpleNamespace(brief_id=41, brief=brief)
-
-    monkeypatch.setattr(streamlit_app, "st", FakeStreamlit())
-    monkeypatch.setattr(
-        streamlit_app,
-        "_ensure_demo_data",
-        lambda: [document],
+    assert not app.exception
+    assert not app.error
+    assert events
+    payload = events[-1][1]
+    assert payload.brief.evidence
+    download = app.get("download_button")[0]
+    assert getattr(download, "label") == "Download review brief (JSON)"
+    assert download.proto.ignore_rerun
+    labels = []
+    for tab in app.tabs:
+        assert isinstance(tab, Tab)
+        labels.append(tab.label)
+    assert labels == [
+        "Overview", "Review findings", "Evidence & source", "Run details",
+    ]
+    assert app.metric[3].value == (
+        f"0 / {len(payload.brief.risk_domains) + len(payload.brief.missing_info)}"
     )
-    monkeypatch.setattr(
-        streamlit_app.database,
-        "get_document_review",
-        lambda document_id: (document, export_payload),
-    )
-    monkeypatch.setattr(
-        streamlit_app,
-        "serialize_brief_export",
-        lambda payload: '{"export_schema_version": "1.0.0"}\n',
-    )
-    monkeypatch.setattr(
-        streamlit_app,
-        "load_validation_summary",
-        lambda: {
-            "sample_count": 0,
-            "status_counts": {},
-            "detail_rows": [],
-        },
-    )
-    monkeypatch.setattr(
-        streamlit_app,
-        "render_brief_body",
-        lambda rendered_brief: events.append(
-            ("render_brief_body", rendered_brief)
-        ),
-    )
-    monkeypatch.setattr(
-        streamlit_app,
-        "render_reviewer_decisions",
-        lambda payload: events.append(
-            ("render_reviewer_decisions", payload)
-        ),
-    )
+    # Streamlit's element order follows the page order, even inside columns.
+    elements = list(app.main)
+    download_index = next(i for i, element in enumerate(elements) if element.type == "download_button")
+    tabs_index = next(i for i, element in enumerate(elements) if element.type == "tab_container")
+    assert download_index < tabs_index
 
-    streamlit_app.render_bundled_view()
-
-    download_index = next(
-        index
-        for index, event in enumerate(events)
-        if event[0] == "download_button"
-    )
-    brief_index = next(
-        index
-        for index, event in enumerate(events)
-        if event[0] == "render_brief_body"
-    )
-    reviewer_index = next(
-        index
-        for index, event in enumerate(events)
-        if event[0] == "render_reviewer_decisions"
-    )
-    button = events[download_index][1]
-
-    assert download_index < brief_index
-    assert brief_index < reviewer_index
-    assert events[reviewer_index][1] is export_payload
-    assert button["label"] == "Download review brief (JSON)"
-    assert button["file_name"] == "inspection-brief-document-7.json"
-    assert button["mime"] == "application/json"
-    assert "source evidence" in button["help"].lower()
-    assert "processing time" in button["help"].lower()
-    assert "source fingerprint" in button["help"].lower()
-
-
-def test_adhoc_view_does_not_render_persisted_reviewer_controls(monkeypatch):
-    events = []
-
-    class FakeStreamlit:
-        def info(self, *_args, **_kwargs):
-            return None
-
-        def text_input(self, *_args, **_kwargs):
-            return ""
-
-        def text_area(self, *_args, **_kwargs):
-            return "Fire-safety work is included."
-
-        def button(self, *_args, **_kwargs):
-            return True
-
-        def subheader(self, *_args, **_kwargs):
-            return None
-
-        def caption(self, *_args, **_kwargs):
-            return None
-
-    monkeypatch.setattr(streamlit_app, "st", FakeStreamlit())
-    monkeypatch.setattr(
-        streamlit_app,
-        "render_brief_body",
-        lambda brief: events.append(("render_brief_body", brief)),
-    )
-    monkeypatch.setattr(
-        streamlit_app,
-        "render_reviewer_decisions",
-        lambda *_args: events.append(("render_reviewer_decisions",)),
-    )
-
-    streamlit_app.render_adhoc_view()
-
-    assert [event[0] for event in events] == ["render_brief_body"]
 
 
 def test_init_db_creates_tables(tmp_path):
@@ -416,6 +292,21 @@ def test_build_document_from_text_default_title_when_no_title_line():
     # A caller-provided default title is honoured.
     doc2 = build_document_from_text("No title here", default_title="Custom default")
     assert doc2.title == "Custom default"
+
+
+@pytest.mark.parametrize(
+    "raw_text,fallback,expected",
+    [
+        ("TITLE:\nPublic works.", "Pasted public excerpt", "Pasted public excerpt"),
+        ("  title: \t\nPublic works.", "Optional title", "Optional title"),
+        ("TITLE:\nTITLE: Roof works\nPublic works.", "Optional title", "Roof works"),
+    ],
+)
+def test_empty_title_lines_do_not_suppress_a_usable_title(raw_text, fallback, expected):
+    document = build_document_from_text(raw_text, default_title=fallback)
+
+    assert document.title == expected
+    assert document.raw_text == raw_text
 
 
 def test_build_document_from_text_default_source_is_user_input():

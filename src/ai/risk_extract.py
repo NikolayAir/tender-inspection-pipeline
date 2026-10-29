@@ -3,8 +3,9 @@
 This module implements the rule-based extraction/classification layer for the
 Tender-to-Inspection Brief project. It maps cleaned tender text to
 construction-focused technical-review domains using a declared keyword-to-domain
-taxonomy, scanned case-insensitively. Each detected domain is linked to an
-evidence snippet, so every finding remains traceable to the source text.
+taxonomy, scanned case-insensitively. Detected domains and explicit gap matches
+are linked to source snippets. A no-match notice requests manual review without
+claiming supporting source evidence.
 
 The extractor is intentionally simple, fully offline, and reproducible. It is
 not presented as a final NLP, LLM, or semantic extraction system. It always
@@ -69,6 +70,10 @@ MISSING_INFO_PHRASES: list[str] = [
     "referenced but",
 ]
 
+# Kept in missing_info for the existing brief contract; the UI displays it as a
+# manual-review notice rather than an extracted information gap.
+NO_MATCH_NOTICE = "No known domain keywords or information gaps detected; manual review needed."
+
 # Generic review questions suggested per detected domain.
 DOMAIN_QUESTIONS: dict[str, str] = {
     "Fire safety": "Is an up-to-date fire safety concept and detection design available for review?",
@@ -117,21 +122,23 @@ def extract_brief(document: TenderDocument) -> InspectionBrief:
                         location=f"line {line_no}",
                     )
                 )
-                break  # one evidence snippet per domain is enough for the current baseline
+                # Taxonomy order selects one matching keyword per domain;
+                # _first_line_with then chooses its supporting source line.
+                break
 
     review_questions = [DOMAIN_QUESTIONS[d] for d in detected if d in DOMAIN_QUESTIONS]
 
     missing_info, missing_evidence = _scan_missing_info(text)
     evidence.extend(missing_evidence)
+    # Count matches before adding the compatibility notice as a review target.
+    information_gap_count = len(missing_info)
     if not detected and not missing_info:
-        missing_info.append(
-            "No known domain keywords or information gaps detected; manual review needed."
-        )
+        missing_info.append(NO_MATCH_NOTICE)
 
     summary = (
         f'For "{document.title}", the rule-based extractor flagged '
         f"{len(detected)} possible technical review focus area(s) and "
-        f"{len(missing_info)} explicit information gap(s). "
+        f"{information_gap_count} explicit information gap(s). "
         "The output is derived from a transparent rule-based "
         "domain-classification baseline, not from an LLM, "
         "and is intended for human technical review only."

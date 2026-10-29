@@ -45,6 +45,7 @@ def _store_document_result(
     if document_id is None:
         document_id = database.insert_document(document, connection=connection)
     else:
+        # Refresh the current source record; earlier runs, briefs and decisions keep their identities.
         database.update_document(document_id, document, connection=connection)
 
     processing_run = build_processing_run(document_id, document)

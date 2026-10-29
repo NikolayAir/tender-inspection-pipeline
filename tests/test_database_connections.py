@@ -25,6 +25,7 @@ def test_document_lookup_can_read_while_another_connection_reserves_the_writer(
 
     def short_timeout(*args, **kwargs):
         conn = original_connect(*args, **kwargs)
+        # Fail promptly if a read helper accidentally tries to reserve the SQLite writer.
         conn.execute("PRAGMA busy_timeout = 100")
         return conn
 

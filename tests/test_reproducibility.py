@@ -16,6 +16,8 @@ def _stable_export_payload(
     """Return the export content expected to remain stable across runs."""
     payload = exported.model_dump(mode="json")
 
+    # Ignore only run-specific IDs and time; evidence, versions and all other
+    # content must still agree. This compares content, not identical export bytes.
     payload["document"].pop("id")
     payload["processing_run"].pop("id")
     payload["processing_run"].pop("processed_at")

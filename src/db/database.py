@@ -32,7 +32,6 @@ from src.exports import (
     VersionedBriefExport,
 )
 from src.models import (
-    EvidenceSnippet,
     InspectionBrief,
     ProcessingRun,
     ReviewerDecision,
@@ -47,6 +46,10 @@ from src.provenance import (
 )
 
 DEFAULT_DB_PATH = Path("data") / "processed" / "tender_inspection.db"
+
+
+class InvalidStoredTimestampError(ValueError):
+    """A saved review timestamp cannot be read as a UTC datetime."""
 
 
 def connect(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
@@ -76,6 +79,7 @@ def transaction(
         yield connection
         return
 
+    # The connection context commits or rolls back; closing() releases the handle.
     with closing(connect(db_path)) as conn, conn:
         conn.execute("BEGIN IMMEDIATE")
         yield conn
@@ -255,6 +259,8 @@ def _backfill_legacy_processing_runs(conn: sqlite3.Connection) -> None:
     ).fetchall()
 
     for row in rows:
+        # Old databases retain only the current source text. This migration can
+        # fingerprint that text, but cannot recover the source used by an older brief.
         run_cursor = conn.execute(
             """
             INSERT INTO processing_runs (
@@ -510,6 +516,7 @@ def insert_reviewer_decision(
                 "does not reference a persisted brief"
             )
 
+        # Validate the immutable brief's original list, never a filtered UI queue.
         target_column = (
             "risk_domains"
             if decision.target_type == "risk_domain"
@@ -633,10 +640,8 @@ def _inspection_brief_from_row(row: sqlite3.Row) -> InspectionBrief:
         risk_domains=json.loads(row["risk_domains"]),
         missing_info=json.loads(row["missing_info"]),
         review_questions=json.loads(row["review_questions"]),
-        evidence=[
-            EvidenceSnippet(**item)
-            for item in json.loads(row["evidence"])
-        ],
+        # Let the model validate both the evidence list and its nested records.
+        evidence=json.loads(row["evidence"]),
         confidence=row["confidence"],
         human_review_required=bool(row["human_review_required"]),
     )
@@ -644,10 +649,15 @@ def _inspection_brief_from_row(row: sqlite3.Row) -> InspectionBrief:
 
 def _stored_timestamp_as_utc(value: str) -> datetime:
     """Parse a stored timestamp, treating legacy SQLite timestamps as UTC."""
-    parsed = datetime.fromisoformat(value)
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+    try:
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    except (TypeError, ValueError, OverflowError) as error:
+        # Mark date-parsing and UTC-conversion failures as corrupt stored data.
+        # Keep unrelated read errors outside this exception boundary.
+        raise InvalidStoredTimestampError("Saved review contains an invalid timestamp") from error
 
 
 def get_brief_for_document(
@@ -693,6 +703,8 @@ def get_document_review(
     the page is rendered, without reserving write access.
     """
     with closing(connect(db_path)) as conn, conn:
+        # Keep source, brief and decisions in one read transaction; separate queries
+        # could otherwise see different committed database states.
         conn.execute("BEGIN")
         document = conn.execute(
             "SELECT * FROM documents WHERE id = ?", (document_id,),

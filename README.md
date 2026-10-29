@@ -6,43 +6,41 @@ The application uses deterministic keyword rules to identify technical scopes, f
 
 [Open the application](https://tender-inspection.streamlit.app)
 
-![Application interface with a selected public tender sample and JSON download](docs/assets/tender-inspection-overview.png)
+![Focused review workspace with technical scopes, review questions, and JSON download](docs/assets/tender-inspection-overview.png)
 
 ## Review workflow
 
-1. Choose a bundled public or synthetic sample, or paste a public, non-confidential excerpt.
-2. Inspect the generated brief and check each finding against the source evidence.
-3. For bundled samples, save **Accepted**, **Rejected**, or **Needs follow-up** decisions with optional notes, then download the brief as JSON.
+1. Choose a bundled public or synthetic sample in **Review workspace**, or open **Analyse a public excerpt** to paste public, non-confidential text.
+2. Scan the overview, then inspect one finding at a time with its supporting source text before recording a decision.
+3. For bundled samples, save **Accepted**, **Rejected**, or **Needs follow-up** decisions with optional notes. Use **Preview JSON** to inspect the saved brief and history before downloading the file.
 
-See the [user guide](docs/user-guide.md) for reviewing findings, saving decisions, and downloading results.
+Open **How it works** in the application for a short walkthrough. See the [user guide](docs/user-guide.md) for the workspace tabs, review filters, session previews, and downloads.
 
 ## How it works
 
-A Streamlit interface and a command-line pipeline share Python extraction and Pydantic models. Bundled results are saved in SQLite and reused on later visits; pasted excerpts produce a session-only preview.
+The Streamlit interface and command-line pipeline use the same text cleaning, keyword rules and brief models. Bundled results are saved in SQLite and reused on later visits. Pasted excerpts produce a temporary preview for the current browser session.
 
 ```mermaid
 flowchart TD
-    bundled["Bundled sample<br/>public or synthetic excerpt"] --> normalise("Normalise text")
-    pasted["Pasted public excerpt"] --> normalise
-    normalise --> extract("Apply deterministic<br/>keyword rules")
-    extract --> brief["InspectionBrief<br/>summary + technical scopes<br/>review focus areas + gaps<br/>questions + source evidence"]
+    bundled["Bundled sample"] --> extract("Clean text<br/>Keyword rules")
+    pasted["Pasted public text"] --> extract
 
-    brief -->|Pasted excerpt| preview("Inspect session preview<br/>no storage or export")
-    brief -->|Bundled sample| save("Record provenance<br/>and save atomically")
-    save --> db[("SQLite<br/>documents + runs<br/>immutable briefs<br/>reviewer decision history")]
-    db -->|Read saved brief| review("Human review<br/>verify findings against<br/>source evidence")
-    review -->|Append decisions| db
-    db --> export["Versioned JSON export<br/>brief + source metadata<br/>provenance + review history"]
+    extract -->|Pasted| preview["Session-only preview"]
+    extract -->|Bundled: atomic save<br/>source + run + brief| db[("SQLite")]
+
+    db <--> review("Human review<br/>Check evidence<br/>Append decisions")
+    db --> export["Versioned<br/>JSON export"]
 ```
 
-Rounded boxes denote actions, square-cornered boxes denote inputs or outputs, and the cylinder denotes persistent storage. JSON export is available before or after reviewer decisions are saved.
+The atomic save covers one sample's source record, processing run and generated brief. JSON export is available before or after reviewer decisions are saved. Pasted previews have no saved decisions or export.
 
 - Each persisted brief links to a processing run with extractor and schema versions and a SHA-256 fingerprint of the normalised source.
-- Reviewer decisions append history events without changing the generated brief. Pasted previews have no saved decisions or export.
+- Reviewer decisions append history events without changing the generated brief.
 - Explicit reprocessing appends a new run and brief; earlier decisions remain attached to the earlier brief.
-- Failed sample processing preserves previously saved data. The interface reads the source, findings, decisions, and export from one SQLite snapshot.
+- Failed sample processing preserves previously saved data.
+- The displayed review and JSON export are built from the same SQLite read snapshot.
 
-See [architecture and data contracts](docs/architecture.md) for processing steps and exact guarantees, and the [decision log](docs/decision_log.md) for rationale and trade-offs.
+See [architecture and data contracts](docs/architecture.md#processing-paths) for the detailed diagram, processing steps and exact guarantees, and the [decision log](docs/decision_log.md) for rationale and trade-offs.
 
 ## Run locally
 

@@ -167,3 +167,19 @@ Decision: Read the selected source document, latest processing result and review
 Reasoning: Separate reads could return source text or findings from an earlier result and a brief ID from a newer one if an explicit pipeline run saved changes between queries. A reviewer decision could then be attached to a finding the user had not seen. The shared snapshot keeps the source, generated findings, decisions and export consistent without reserving write access.
 
 Trade-off: A page load may finish with the earlier result if reprocessing completes after the read snapshot begins. The next page rerun reads the latest result. A form submitted for an earlier brief is not applied to a newer brief. Historical source revisions remain outside the data model, and export schemas keep their existing contracts.
+
+## 2026-10-26 — Focused review workspace
+
+Decision: Keep the existing Streamlit application and separate the overview, finding review, source evidence, and processing details into tabs. Show one generated finding with its direct source evidence beside one decision form. Preserve original brief, target-type, and target-index identities when filtering or moving through the queue. Keep pasted input beside its session preview, and provide an in-app workflow guide.
+
+Reasoning: Repeating technical scopes, every evidence row, and every decision form on one page made the review hard to scan and required substantial scrolling. The focused workspace exposes the next action while keeping provenance and qualitative validation available. A neutral light theme, compact metrics, and responsive columns improve presentation without changing extraction or persistence contracts.
+
+Trade-off: The initial workspace required reviewers to save before switching findings. Session draft retention, recorded on 2026-10-28, later removed that requirement. Bulk decisions and automatic saves remain unavailable. Preview state lasts only for the current session. The responsive sidebar can be hidden, with a labelled **Menu & samples** control remaining visible in the header. Explicit review and successful preview actions can reveal their destination through a small trusted local script; ordinary reruns and decision saves do not request scrolling. The script accepts fixed selectors only and respects reduced-motion preferences. Browser checks complement AppTest because layout, focus, and scrolling are not exercised by Python tests.
+
+## 2026-10-28 — Session drafts and saved-decision feedback
+
+Decision: Keep editable reviewer choices and notes in Streamlit session state under their original brief, target type and target index. Show whether those fields match the saved decision and retain the displayed review and JSON while the reviewer edits or changes findings. Before writing, read the current brief and reject a submission for a different brief.
+
+Reasoning: A temporary save notification did not show whether later edits were saved. Reviewers also need to move between findings without losing unfinished notes or adding events to the saved history.
+
+Trade-off: Only an explicit save appends a decision event, including Save again when the fields are unchanged. Drafts survive finding navigation and help in the same session, but reloading the page clears them. Explicit reprocessing creates a new brief and does not transfer earlier decisions or drafts.

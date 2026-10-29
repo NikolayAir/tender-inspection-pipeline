@@ -25,11 +25,11 @@ The application accepts bundled public or synthetic excerpts and short public, n
 
 Each generated brief contains a summary, technical scopes and review focus areas, information gaps, suggested questions, source-labelled evidence, fixed `low` baseline confidence, and a human-review-required marker.
 
-For persisted bundled briefs, reviewers can record `accepted`, `rejected`, or `needs_follow_up` decisions with optional notes. Every saved change appends a history event without modifying the generated brief.
+For persisted bundled briefs, reviewers can record `accepted`, `rejected`, or `needs_follow_up` decisions with optional notes. Every successful save appends a history event without modifying the generated brief.
 
-Persisted briefs can be downloaded as deterministic, versioned JSON containing document metadata, the linked processing run, the generated brief and source evidence, and the complete ordered reviewer-decision history.
+Persisted briefs can be inspected in a read-only JSON preview and downloaded as deterministic, versioned JSON containing document metadata, the linked processing run, the generated brief and source evidence, and the complete ordered reviewer-decision history.
 
-Saved decisions remain tied to the brief the reviewer inspected. Refreshing a result creates a new brief without transferring earlier decisions. Failed processing preserves the previous saved review.
+Saved decisions remain tied to the brief the reviewer inspected. Explicit reprocessing creates a new brief without transferring earlier decisions. Reloading the page retains completed results and saved decisions while clearing session drafts. Failed processing preserves the previous saved review.
 
 See the [user guide](user-guide.md) for the review workflow and [architecture and data contracts](architecture.md) for persistence, recovery, and export guarantees. Sample sources and evaluation boundaries are documented in [data and validation](data-and-validation.md).
 

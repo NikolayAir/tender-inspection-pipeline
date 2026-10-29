@@ -1,0 +1,25 @@
+/* Keep Streamlit's native sidebar control and give it a visible purpose. */
+[data-testid="stExpandSidebarButton"] {
+    display: inline-flex; /* Keep the native icon and added label on the same row. */
+    align-items: center;
+    gap: 0.45rem;
+    width: auto;
+    min-width: 10rem; /* Leave room for the icon and label on wider screens. */
+    height: 2.5rem;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid var(--tender-border);
+    border-radius: 0.5rem;
+}
+
+[data-testid="stExpandSidebarButton"]::after {
+    content: "Menu & samples"; /* Label Streamlit's existing opener without replacing its button. */
+    white-space: nowrap; /* Keep the label together when the header becomes narrow. */
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+@media (max-width: 800px) {
+    [data-testid="stExpandSidebarButton"] {
+        min-width: 0; /* Release the desktop minimum so the opener fits narrow screens. */
+    }
+}

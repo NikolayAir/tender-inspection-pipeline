@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.models import InspectionBrief, ReviewState, ReviewTargetType
 
+# File-format versions evolve independently of extractor and generated-brief versions.
 BRIEF_EXPORT_SCHEMA_VERSION_V1_0 = "1.0.0"
 BRIEF_EXPORT_SCHEMA_VERSION = "1.1.0"
 
@@ -136,6 +137,7 @@ class VersionedBriefExport(_BriefExportBase):
         value: list[ExportReviewerDecision],
     ) -> list[ExportReviewerDecision]:
         """Require unique event IDs in ascending insertion order."""
+        # IDs define append order even when an event carries an earlier timestamp.
         if any(
             earlier.id >= later.id
             for earlier, later in zip(value, value[1:])
@@ -151,6 +153,7 @@ BriefExportPayload = VersionedBriefExportV1_0 | VersionedBriefExport
 
 def serialize_brief_export(payload: BriefExportPayload) -> str:
     """Serialise a supported export deterministically as JSON text."""
+    # Fixed formatting and a final newline keep repeated exports of one payload byte-identical.
     return (
         json.dumps(
             payload.model_dump(mode="json"),

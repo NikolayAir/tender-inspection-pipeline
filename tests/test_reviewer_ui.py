@@ -16,14 +16,6 @@ from src.app.streamlit_app import (
 from src.models import StoredReviewerDecision
 
 
-class _FakeForm:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        return False
-
-
 class _ReviewerTargetStreamlit:
     def __init__(self, selected_state, note, *, submitted=True):
         self.selected_state = selected_state
@@ -34,6 +26,7 @@ class _ReviewerTargetStreamlit:
         self.toasts = []
         self.warnings = []
         self.writes = []
+        self.texts = []
         self.reruns = 0
 
     def markdown(self, *_args, **_kwargs):
@@ -42,14 +35,17 @@ class _ReviewerTargetStreamlit:
     def write(self, *args, **_kwargs):
         self.writes.append(args)
 
+    def text(self, value, **_kwargs):
+        self.texts.append(value)
+
     def caption(self, *_args, **_kwargs):
         return None
 
     def toast(self, message, **kwargs):
         self.toasts.append((message, kwargs))
 
-    def form(self, *_args, **_kwargs):
-        return _FakeForm()
+    def badge(self, *_args, **_kwargs):
+        return None
 
     def selectbox(self, *_args, **_kwargs):
         return self.selected_state
@@ -57,7 +53,7 @@ class _ReviewerTargetStreamlit:
     def text_area(self, *_args, **_kwargs):
         return self.note
 
-    def form_submit_button(self, *_args, **_kwargs):
+    def button(self, *_args, **_kwargs):
         return self.submitted
 
     def warning(self, message):
@@ -66,7 +62,7 @@ class _ReviewerTargetStreamlit:
     def error(self, message):
         self.errors.append(message)
 
-    def rerun(self):
+    def rerun(self, **_kwargs):
         self.reruns += 1
 
 
@@ -196,10 +192,7 @@ def test_reviewer_target_displays_current_state_and_note(monkeypatch):
     )
 
     assert ("**Current review status:**", "Accepted") in fake_st.writes
-    assert (
-        "**Current reviewer note:**",
-        "Drawings confirmed.",
-    ) in fake_st.writes
+    assert "Drawings confirmed." in fake_st.texts
     assert fake_st.reruns == 0
 
 
@@ -249,20 +242,50 @@ def test_reviewer_target_reports_save_failure(monkeypatch, error):
         fail_to_insert,
     )
 
-    streamlit_app._render_reviewer_target(
-        brief_id=41,
-        target_type="risk_domain",
-        target_index=0,
-        generated_value="Fire safety",
-        current=None,
-        history=[],
-    )
+    def render_target():
+        streamlit_app._render_reviewer_target(
+            brief_id=41, target_type="risk_domain", target_index=0,
+            generated_value="Fire safety", current=None, history=[],
+        )
 
-    assert fake_st.errors == [
-        "The reviewer decision could not be saved. Refresh the page and try again."
-    ]
-    assert fake_st.session_state == {}
-    assert fake_st.reruns == 0
+    render_target()
+    submission = fake_st.session_state.pop("_pending_review_save")
+    assert streamlit_app._persist_review_submission(41, submission) is False
+    fake_st.submitted = False
+    render_target()
+
+    assert len(fake_st.errors) == 1
+    if isinstance(error, sqlite3.Error):
+        assert "try saving again" in fake_st.errors[0]
+        assert "Refresh" not in fake_st.errors[0]
+    else:
+        assert "Copy your note before refreshing" in fake_st.errors[0]
+    assert fake_st.session_state["reviewer:41:risk_domain:0:draft"] == {
+        "state": "accepted", "note": "Source evidence checked.",
+    }
+    assert "reviewer:41:risk_domain:0:error" in fake_st.session_state
+    assert "reviewer:41:risk_domain:0:saved" not in fake_st.session_state
+    assert fake_st.reruns == 1
+
+
+@pytest.mark.parametrize(
+    "initial,identities,offset,expected",
+    [
+        (("risk_domain", 0), [("risk_domain", 0), ("risk_domain", 1)], -1, ("risk_domain", 0)),
+        (("risk_domain", 1), [("risk_domain", 0), ("risk_domain", 1)], 1, ("risk_domain", 1)),
+        (("risk_domain", 0), [("missing_info", 0)], 1, ("risk_domain", 0)),
+        (None, [("risk_domain", 0)], 1, None),
+    ],
+)
+def test_stale_navigation_events_do_not_wrap_or_crash(monkeypatch, initial, identities, offset, expected):
+    fake_st = _ReviewerTargetStreamlit(None, "", submitted=False)
+    if initial is not None:
+        fake_st.session_state["queue"] = initial
+    monkeypatch.setattr(streamlit_app, "st", fake_st)
+
+    streamlit_app._move_finding("queue", identities, offset)
+
+    assert fake_st.session_state.get("queue") == expected
 
 
 def test_reviewer_target_saves_valid_append_only_event(monkeypatch):
@@ -287,6 +310,9 @@ def test_reviewer_target_saves_valid_append_only_event(monkeypatch):
         history=[],
     )
 
+    assert inserted == []
+    submission = fake_st.session_state.pop("_pending_review_save")
+    assert streamlit_app._persist_review_submission(41, submission) is True
     assert len(inserted) == 1
     assert inserted[0].brief_id == 41
     assert inserted[0].target_type == "missing_info"
@@ -299,3 +325,20 @@ def test_reviewer_target_saves_valid_append_only_event(monkeypatch):
     ] == "Reviewer decision saved."
     assert fake_st.errors == []
     assert fake_st.reruns == 1
+
+
+def test_queued_review_submission_is_not_written_to_a_newer_brief(monkeypatch):
+    inserted = []
+    fake_st = _ReviewerTargetStreamlit("accepted", "Draft for the displayed brief.")
+    monkeypatch.setattr(streamlit_app, "st", fake_st)
+    monkeypatch.setattr(streamlit_app.database, "insert_reviewer_decision", lambda decision: inserted.append(decision))
+    streamlit_app._render_reviewer_target(
+        brief_id=41, target_type="risk_domain", target_index=0,
+        generated_value="Fire safety", current=None, history=[],
+    )
+    submission = fake_st.session_state.pop("_pending_review_save")
+
+    assert streamlit_app._persist_review_submission(42, submission) is False
+    assert inserted == []
+    assert any("brief has changed" in message for message in fake_st.warnings)
+    assert fake_st.session_state["reviewer:41:risk_domain:0:draft"]["note"] == "Draft for the displayed brief."

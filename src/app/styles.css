@@ -1,0 +1,248 @@
+/* Keep native widgets and keyboard behaviour; scope layout changes to app keys. */
+:root {
+    --tender-accent: #2b5f91; /* Muted medium blue. */
+    --tender-accent-soft: #eaf2f8; /* Very pale blue. */
+    --tender-brand: #16324f; /* Deep navy blue. */
+    --tender-muted: #526477; /* Medium slate blue-grey. */
+    --tender-surface: #fff; /* White. */
+    --tender-border: #d6e0ea; /* Light blue-grey. */
+    --tender-control-border: #7a8ca1; /* Medium slate blue-grey for editable controls. */
+}
+
+.stMainBlockContainer {
+    container-name: tender-workspace; /* Name referenced by the @container rules below. */
+    container-type: inline-size; /* Let child layouts respond to the available workspace width. */
+    max-width: 1240px; /* Keep review text readable on wide screens. */
+    padding-top: 4rem;
+    padding-bottom: 2rem;
+    padding-inline: clamp(1rem, 3vw, 5rem); /* Side padding follows viewport width, bounded between 1rem and 5rem. */
+}
+
+.stApp h1 {
+    font-size: 2rem;
+    letter-spacing: -0.02em; /* Keep large headings compact while preserving letter separation. */
+}
+.stApp h2 { font-size: 1.45rem; letter-spacing: -0.015em; }
+.stApp h3 { font-size: 1.08rem; letter-spacing: normal; }
+.stApp h1, .stApp h2, .stApp h3 { padding-top: 0; }
+
+/* Captions include source locations and save guidance, so keep them readable. */
+[data-testid="stCaptionContainer"] {
+    color: var(--tender-muted);
+    opacity: 1;
+}
+
+/* Distinguish editable controls from reading surfaces; retain native focus styling. */
+.stApp :is([data-testid="stTextInputRootElement"], [data-testid="stTextAreaRootElement"]):not(:focus-within),
+.stApp [data-testid="stSelectbox"] [data-baseweb="select"]:not(:focus-within) > div {
+    border-color: var(--tender-control-border);
+}
+
+/* Shorter reading lines on desktops; retain the native limits on narrow screens. */
+@media (min-width: 1024px) {
+    [role="dialog"]:has(.st-key-workflow_guide_intro) { width: 72rem; }
+    [role="dialog"]:has(.st-key-export_preview_intro) { width: 64rem; }
+}
+
+[role="dialog"]:has(.st-key-export_preview_intro) [data-testid="stText"] {
+    overflow-wrap: anywhere; /* Keep long URLs and unbroken values inside the JSON preview. */
+}
+
+.app-brand { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 1.5rem; }
+.brand-mark {
+    display: grid;
+    place-items: center; /* Centre the monogram on both axes. */
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.7rem;
+    background: var(--tender-brand);
+    color: #fff; /* White lettering on navy. */
+    font-weight: 750;
+    letter-spacing: -0.08em; /* Keep the initials joined as a compact monogram. */
+}
+.brand-name { font-size: 1.05rem; font-weight: 700; line-height: 1.25; }
+.brand-caption {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em; /* Open up small uppercase labels for readability. */
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--tender-muted);
+}
+
+/* Leave room for the full title, the brand mark and the sidebar padding. */
+[data-testid="stSidebar"][aria-expanded="true"] {
+    min-width: 18rem;
+}
+[data-testid="stSidebar"][aria-expanded="true"] .brand-name {
+    white-space: nowrap; /* Keep the full application name on one line. */
+}
+[data-testid="stSidebar"][aria-expanded="true"] .brand-mark {
+    flex-shrink: 0; /* Preserve the logo width when neighbouring text needs more room. */
+}
+
+.st-key-workspace_nav [role="radiogroup"] { gap: 0.25rem; }
+.st-key-workspace_nav [role="radiogroup"] > label {
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.55rem;
+    width: 100%;
+    margin: 0;
+}
+.st-key-workspace_nav [role="radiogroup"] > label:has(input:checked) {
+    background: var(--tender-accent-soft);
+    color: var(--tender-accent);
+}
+
+.st-key-brief_header { padding-top: 0.2rem; }
+.st-key-brief_metrics [data-testid="stMetric"] {
+    background: var(--tender-surface);
+    border: 1px solid var(--tender-border);
+    border-radius: 0.65rem;
+    padding: 0.65rem 1rem;
+}
+.st-key-brief_metrics [data-testid="stMetricValue"] { font-size: 1.7rem; }
+.st-key-brief_metrics [data-testid="stMetricLabel"] { font-size: 0.8rem; }
+.st-key-brief_tabs [role="tablist"] { gap: 1.6rem; }
+.st-key-brief_tabs [role="tab"] { padding: 0.8rem 0.1rem; }
+.st-key-brief_tabs [role="tabpanel"] { padding-top: 1.25rem; }
+
+.scope-tags {
+    display: flex;
+    flex-wrap: wrap; /* Let topic tags wrap rather than widen the page. */
+    gap: 0.45rem;
+    margin: 0.3rem 0 1rem;
+}
+.scope-tag {
+    padding: 0.35rem 0.65rem;
+    background: var(--tender-accent-soft);
+    border: 1px solid var(--tender-border);
+    border-radius: 0.4rem;
+    font-size: 0.83rem;
+    line-height: 1.45; /* Leave room between lines when a tag label wraps. */
+}
+.st-key-overview_summary, .st-key-finding_evidence,
+.st-key-finding_decision, .st-key-excerpt_input {
+    padding: 1.15rem;
+}
+.st-key-overview_summary, .st-key-finding_evidence,
+.st-key-finding_decision, .st-key-excerpt_input,
+.st-key-evidence_quote, .st-key-source_text,
+.st-key-preview_source, .st-key-preview_empty {
+    background: var(--tender-surface);
+}
+.st-key-source_text pre {
+    white-space: pre-wrap; /* Preserve source spacing and line breaks while allowing wrapping. */
+    overflow-wrap: anywhere;
+    font-size: 0.85rem;
+}
+.st-key-finding_evidence pre, .st-key-preview_source pre {
+    white-space: pre-wrap; /* Preserve quoted spacing and line breaks while allowing wrapping. */
+    overflow-wrap: anywhere; /* Break an unspaced value if it would otherwise overflow. */
+}
+.st-key-evidence_quote { padding: 1rem; }
+.st-key-evidence_quote pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.st-key-preview_empty { padding: 2rem; margin-top: 0.1rem; border-style: dashed; }
+.st-key-sidebar_footer { margin-top: 1.5rem; }
+.st-key-brief_tabs, .st-key-preview_result {
+    scroll-margin-top: 5rem; /* Leave space above content revealed by scrollIntoView(). */
+}
+.st-key-scroll_effect {
+    display: none; /* Keep the script-only scroll helper out of the visible layout. */
+}
+
+/* Give finding navigation room before the source and decision panels stack. */
+@container tender-workspace (max-width: 1000px) {
+    .st-key-review_controls [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* Equal columns that can shrink below their contents' natural width. */
+    }
+    .st-key-review_controls [data-testid="stColumn"]:nth-child(-n+2) {
+        grid-column: 1 / -1; /* Each selector spans the full grid; the buttons share the next row. */
+    }
+    .st-key-review_controls [data-testid="stColumn"] {
+        width: 100%;
+        min-width: 0; /* Allow the column to shrink instead of forcing the page wider. */
+    }
+}
+
+/* The sidebar also consumes width. Stack panels when the workspace is narrow,
+   including tablet and small desktop windows, rather than only on phones. */
+@container tender-workspace (max-width: 760px) {
+    :is(.st-key-brief_header, .st-key-overview_layout, .st-key-review_layout, .st-key-source_layout,
+        .st-key-run_layout, .st-key-excerpt_layout) > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+        flex-direction: column; /* Stack panels when the remaining workspace becomes too narrow. */
+        gap: 1.5rem;
+    }
+    :is(.st-key-brief_header, .st-key-overview_layout, .st-key-review_layout, .st-key-source_layout,
+        .st-key-run_layout, .st-key-excerpt_layout) > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        width: 100%;
+        min-width: 0; /* Allow the column to shrink instead of forcing the page wider. */
+        flex: 1 1 100%; /* Override Streamlit's side-by-side column proportions in the stacked layout. */
+    }
+    .st-key-brief_header > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"] {
+        gap: 0.75rem;
+    }
+    .st-key-page_header h1 { font-size: 1.65rem; }
+    .st-key-brief_metrics [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr)); /* Two equal columns, allowed to shrink below their contents' natural width. */
+    }
+    .st-key-preview_metrics [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr)); /* Keep the three preview metrics together without a minimum content width. */
+        gap: 0.5rem;
+    }
+    :is(.st-key-brief_metrics, .st-key-preview_metrics) [data-testid="stColumn"] {
+        width: 100%;
+        min-width: 0;
+    }
+}
+
+/* Viewport fallback for browsers without container-query support. */
+@media (max-width: 800px) { /* Use browser viewport width, independent of the available workspace width. */
+    .stMainBlockContainer { padding: 4rem 1rem 2rem; }
+    .stApp h1 { font-size: 1.65rem; }
+    .st-key-brief_tabs [role="tablist"] { gap: 0.8rem; }
+    .st-key-brief_tabs [role="tab"] { font-size: 0.85rem; }
+    .st-key-brief_metrics [data-testid="stMetric"] { padding: 0.7rem; }
+    .st-key-brief_metrics [data-testid="stMetricValue"] { font-size: 1.4rem; }
+    .st-key-brief_metrics [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .st-key-preview_metrics [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+    .st-key-review_controls [data-testid="stHorizontalBlock"] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .st-key-review_controls [data-testid="stColumn"]:nth-child(-n+2) { grid-column: 1 / -1; }
+    .st-key-brief_metrics [data-testid="stColumn"],
+    .st-key-preview_metrics [data-testid="stColumn"],
+    .st-key-review_controls [data-testid="stColumn"] { width: 100%; min-width: 0; }
+    .st-key-preview_metrics [data-testid="stMetricValue"] { font-size: 1.5rem; }
+    .st-key-preview_metrics [data-testid="stMetricLabel"] { font-size: 0.72rem; }
+}
+
+/* Soft elevation separates work surfaces without strong blocks of colour. */
+.st-key-brief_metrics [data-testid="stMetric"],
+.st-key-overview_summary,
+.st-key-finding_evidence, .st-key-finding_decision, .st-key-excerpt_input {
+    box-shadow: 0 3px 16px rgba(22, 50, 79, 0.035); /* 3px down, 16px blur, no sideways offset. Very faint navy shadow. */
+}
+.stApp button[kind="primary"] {
+    box-shadow: 0 3px 8px rgba(43, 95, 145, 0.12); /* 3px down with an 8px blur. Soft muted-blue shadow. */
+}
+.stApp button {
+    transition: box-shadow 150ms ease, border-color 150ms ease; /* Soften hover and focus changes over 0.15 seconds. */
+}
+.stApp button:hover { box-shadow: 0 2px 8px rgba(22, 50, 79, 0.07); /* Soft navy shadow. */ }
+.stApp button:focus-visible {
+    outline: 2px solid var(--tender-accent); /* Show keyboard focus without changing the button's size. */
+    outline-offset: 3px; /* Separate the focus ring from the button border. */
+}
+@media (prefers-reduced-motion: reduce) { /* Respect the user's reduced-motion setting. */
+    .stApp button { transition: none; }
+}

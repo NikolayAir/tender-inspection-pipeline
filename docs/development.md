@@ -68,17 +68,30 @@ git diff --check
 
 Run the isolated pipeline smoke check above to exercise the bundled command-line workflow. Tests use temporary databases.
 
+For browser checks that save decisions or simulate damaged data, use a disposable checkout and run the app from that checkout's root. The app uses that copy's default database, keeping these checks separate from your normal review history.
+
 The test suite covers:
 
 | Area | Tests |
 | --- | --- |
-| Extraction, evidence, and qualitative regression | [Smoke tests](../tests/test_smoke.py), [validation](../tests/test_validation.py) |
+| Extraction, evidence, and qualitative regression | [Smoke tests](../tests/test_smoke.py), [summary counts and saved history](../tests/test_summary_counts.py), [validation](../tests/test_validation.py) |
 | Processing provenance and legacy restoration | [Provenance](../tests/test_provenance.py) |
 | Atomic writes, recovery, and database access | [Transactions](../tests/test_pipeline_transactions.py), [sample recovery](../tests/test_sample_recovery.py), [connections](../tests/test_database_connections.py) |
 | Reviewer decisions and interface behaviour | [Decision history](../tests/test_reviewer_decisions.py), [reviewer UI](../tests/test_reviewer_ui.py), [recovery UI](../tests/test_sample_recovery_ui.py), [review snapshots](../tests/test_review_snapshot.py) |
+| Focused workspace, action states and session drafts | [Review queues, saved/edited states and source selection](../tests/test_review_workspace.py), [preview states and storage isolation](../tests/test_excerpt_workspace.py) |
 | Export contracts and stable output across runs | [Exports](../tests/test_exports.py), [reproducibility](../tests/test_reproducibility.py) |
+| Read-only JSON viewer and unfinished review forms | [Download preview](../tests/test_export_preview.py) |
+| Literal source formatting in saved and pasted reviews | [Source display and unchanged exports](../tests/test_literal_display.py) |
 
 These checks verify software behaviour. They do not establish statistical extraction accuracy or engineering correctness.
+
+For UI changes, also inspect the app in a browser at desktop and phone widths, including a smaller desktop window with the sidebar open and closed. Check tab navigation, full source snippets, saving a decision under a status filter, retrying a failed save, opening **Preview JSON** and downloading with an unfinished note, and opening and closing **How it works**. In the JSON viewer, compare the saved history and file contents with the downloaded file, then check that closing it retains the draft note and returns keyboard focus. In the excerpt workspace, check that unsubmitted drafts survive workflow navigation, that a changed draft remains distinct from its previous preview, and that blank titles and unmatched text receive clear feedback. AppTest verifies one-shot reveal requests and their absence during saves or invalid submissions; actual scrolling, focus, responsive layout, and reduced-motion behaviour require browser verification.
+
+UI presentation lives in `src/app/streamlit_app.py`, with pure finding and evidence helpers in `src/app/review.py`, the guide in `src/app/guide.py`, and one-shot reveal effects in `src/app/scroll.py` and `scroll.js`. Theme colours use `.streamlit/config.toml`; `styles.css` scopes layout refinements to named containers, and `navigation.css` gives the native sidebar opener its visible **Menu & samples** label. The reveal script is trusted local code and receives only fixed target selectors, never source text or metadata.
+
+`src/app/export_preview.py` renders the captured JSON payload in a read-only dialog. Its action fragment and the dialog use the payload and canonical JSON supplied by the workspace; they do not read the database, save decisions or rebuild a brief. Closing the dialog and downloading use Streamlit's no-rerun behaviour so unfinished form input remains available.
+
+Source-derived findings and summaries use plain text. Native headings and formatted labels escape Markdown so titles and finding text remain visible literally. For browser checks, include an excerpt containing a Markdown image and formatting markers; confirm that its text stays visible in the overview, finding heading and JSON viewer without creating an image or changing the source or export.
 
 ## Continuous integration
 

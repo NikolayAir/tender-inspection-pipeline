@@ -131,14 +131,17 @@ def test_page_keeps_source_findings_export_and_decisions_on_one_result(
     assert payload["brief"]["risk_domains"] == [expected_domain]
     assert payload["document"]["source_url"] == expected_url
     assert payload["reviewer_decisions"][0]["note"] == f"Saved {expected_domain} review."
-    assert expected_domain in "\n".join(item.value for item in app.markdown)
+    assert any(item.value == expected_domain for item in app.subheader)
     assert any(item.value == f"Saved {expected_domain} review." for item in app.text_area)
-    source_text = app.text[0].value
+    source_text = next(
+        item.value for item in app.text if "TITLE: Review snapshot sample" in item.value
+    )
     assert expected_domain in source_text
     assert payload["processing_run"]["source_content_fingerprint"] == source_content_fingerprint(
         source_text
     )
-    assert any(expected_url in item.value for item in app.markdown)
+    expected_url_label = r"**Source URL:** https\:\/\/example\.org\/" + ("new" if updated else "old")
+    assert any(item.value == expected_url_label for item in app.markdown)
     if not updated:
         assert downloads[-1] == original_json
 
@@ -147,7 +150,7 @@ def test_page_keeps_source_findings_export_and_decisions_on_one_result(
     reviewer.select("rejected")
     note = next(widget for widget in app.text_area if widget.key == key.replace(":state", ":note"))
     note.set_value(f"Decision for displayed {expected_domain}.")
-    next(button for button in app.button if button.label == "Save decision").click().run()
+    app.button(key=f"reviewer:{expected_id}:risk_domain:0:save").click().run()
 
     assert not app.exception
     latest_history = database.get_reviewer_decision_history(published[0], db_path)

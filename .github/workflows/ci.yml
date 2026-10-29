@@ -45,6 +45,7 @@ jobs:
       - name: Compile Python files
         run: python -m compileall -q src tests
 
+      # This database is job-local: each CI job starts from a fresh checkout.
       - name: Run bundled-sample pipeline
         run: python -m src.pipeline
 

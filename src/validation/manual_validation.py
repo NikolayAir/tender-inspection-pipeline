@@ -12,7 +12,7 @@ import csv
 from collections import Counter
 from pathlib import Path
 
-# src/validation/manual_validation.py -> parents[2] is the repository root.
+# Anchor the bundled CSV to the repository, independently of the process's working directory.
 ROOT = Path(__file__).resolve().parents[2]
 
 VALIDATION_CSV_PATH = ROOT / "data" / "labels" / "manual_validation_v1.csv"
